@@ -74,6 +74,27 @@
     return newer === 'remote' ? R : L;
   }
 
+  // ---------- explicit deletions ("clear the day"): a tombstone beats any copy that is older than it
+  const TOMB_DAYS = 90;
+  function tombstones(...objs) {
+    const t = {};
+    objs.forEach(o => { if (o && o._del) for (const k in o._del) t[k] = Math.max(t[k] || 0, o._del[k] || 0); });
+    const cut = Date.now() - TOMB_DAYS * 86400000;
+    for (const k in t) if (t[k] < cut) delete t[k];
+    return t;
+  }
+  function applyTomb(obj, t) {
+    if (!obj || !obj.days) return false;
+    let changed = false;
+    for (const k in t) {
+      if (!k.startsWith('days:')) continue;
+      const d = obj.days[k.slice(5)];
+      if (d && (d.updatedAt || d.createdAt || 0) <= t[k]) { delete obj.days[k.slice(5)]; changed = true; }
+    }
+    return changed;
+  }
+  H.syncForget = function (date) { const s = H.store.get(); s._del = s._del || {}; s._del['days:' + date] = Date.now(); };
+
   // ---------- what is synced
   function strip(data) {
     const d = clone(data);
@@ -196,7 +217,10 @@
         else {
           const { obj: remote, at } = await decrypt(await readRemote(c, hd), c.pass);
           remoteHash = hash(remote);
+          const t = tombstones(local, remote);
+          applyTomb(local, t); applyTomb(remote, t);
           merged = merge3(base, local, remote, (data._syncMod || 0) >= at ? 'local' : 'remote');
+          merged._del = t; if (!Object.keys(t).length) delete merged._del;
         }
         const hM = hash(merged);
         let ver = hd.ver;
@@ -236,14 +260,14 @@
 
   // ---------- automatic triggers
   let timer = null;
-  function schedule(ms = 20000) { clearTimeout(timer); timer = setTimeout(() => { timer = null; run('auto'); }, ms); }
+  function schedule(ms = 4000) { clearTimeout(timer); timer = setTimeout(() => { timer = null; run('auto'); }, ms); }
   function start() {
     if (!H.store || !H.store.onChange) return;
     H.store.onChange(() => { if (applying) return; const d = H.store.get(); d._syncMod = Date.now(); if (cfg()) schedule(); });
     if (cfg()) setTimeout(() => run('open'), 1800);
     document.addEventListener('visibilitychange', () => { if (!cfg()) return; if (document.visibilityState === 'hidden') { if (timer) { clearTimeout(timer); timer = null; run('hide'); } } else schedule(1500); });
     window.addEventListener('online', () => { if (cfg()) schedule(1000); });
-    setInterval(() => { if (cfg() && document.visibilityState !== 'hidden') run('interval'); }, 5 * 60 * 1000);
+    setInterval(() => { if (cfg() && document.visibilityState !== 'hidden') run('interval'); }, 60 * 1000);   // a quiet check is one tiny request
   }
 
   // ---------- connecting a device

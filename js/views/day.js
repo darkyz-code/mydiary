@@ -68,6 +68,7 @@
       const d = R(); if (!d) return;
       (d.photos || []).forEach(p => H.photos.remove(p.id));
       delete S.days[date];
+      if (H.syncForget) H.syncForget(date);   // so the other devices drop this day too
       S.profile.weightLog = (S.profile.weightLog || []).filter(x => x.date !== date);
       H.store.save();
       H.go('day', { date });
