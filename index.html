@@ -10,7 +10,7 @@
   <meta name="theme-color" content="#0b0c10">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.github.com https://*.workers.dev">
   <title>My Diary</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="silver.css">
@@ -68,8 +68,12 @@
   <script src="js/views/games.js"></script>
   <script src="js/journal-data.js"></script>
   <script src="js/views/journal.js"></script>
+  <script src="js/views/sync-ui.js"></script>
   <script src="js/views/settings.js"></script>
   <script src="js/views/export.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/reminders.js"></script>
   <script src="js/app.js"></script>
   <script src="js/mobile.js"></script>
 </body>

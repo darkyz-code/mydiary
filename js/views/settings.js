@@ -85,7 +85,7 @@
       h('div.stack',
         h('div.glass.card', h('div.card-title', H.gicon('body', 17, 'sm'), h('h3', 'Мои состояния и симптомы')), custom),
         h('div.glass.card', h('div.card-title', H.gicon('file', 17, 'sm'), h('h3', 'Данные')),
-          h('p.muted', { style: { fontSize: '.88rem' } }, 'Все записи хранятся только на этом iPhone и никуда не отправляются. Каждый день автоматически делается резервная копия (последние 30 дней).'),
+          h('p.muted', { style: { fontSize: '.88rem' } }, H.sync && H.sync.config() ? 'Записи хранятся на этом iPhone, а для синхронизации — ещё и в облаке, только в зашифрованном виде. Каждый день автоматически делается резервная копия (последние 30 дней).' : 'Все записи хранятся только на этом iPhone и никуда не отправляются. Каждый день автоматически делается резервная копия (последние 30 дней).'),
           h('div.row.wrapr', { style: { gap: '10px' } },
             h('button.btn.small', { onclick: async () => { if (!H.store.hasApi) return ui.toast('Доступно в приложении', 'ℹ'); H.store.persistNow(); if (await window.api.exportBackup(H.store.get())) ui.toast('Копия сохранена'); } }, H.icon('file', 15), 'Сохранить копию'),
             h('button.btn.small', { onclick: async () => {
@@ -101,8 +101,10 @@
             if (!await ui.confirm('Точно удалить? Подтверди ещё раз.', 'Да, удалить', true)) return;
             H.store.reset(); H.applySettings(); ui.toast('Данные удалены'); H.go('home');
           } }, 'Удалить все данные')),
+        H.syncCard ? H.syncCard() : null,
+        H.remindCard ? H.remindCard() : null,
         h('div.glass.card', h('div.card-title', H.gicon('heart', 17, 'sm'), h('h3', 'О приложении')),
-          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.9. Работает без интернета. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
+          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.10. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
           st.devUnlocked ? h('div.dev-box',
             h('div.fsection-title', { style: { marginTop: '14px' } }, 'Режим разработчика'),
             ui.toggle(!!st.devMode, v => { st.devMode = v; H.store.save(); }, 'Бесплатные кейсы без ограничений'),

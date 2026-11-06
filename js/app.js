@@ -91,7 +91,11 @@
     if (window.api) {
       document.getElementById('w-min').onclick = () => window.api.win.minimize();
       document.getElementById('w-max').onclick = () => window.api.win.maximize();
-      document.getElementById('w-close').onclick = () => { H.store.persistNow(); window.api.win.close(); };
+      document.getElementById('w-close').onclick = async () => {
+        H.store.persistNow();
+        if (H.sync && H.sync.config() && H.sync.dirty()) { document.body.classList.add('closing-sync'); await Promise.race([H.sync.run('close'), new Promise(r => setTimeout(r, 7000))]); }
+        window.api.win.close();
+      };
       document.getElementById('titlebar').addEventListener('dblclick', e => { if (!e.target.closest('.win-ctrls')) window.api.win.maximize(); });
       window.api.win.onState(st => { if ('fullscreen' in st) document.documentElement.classList.toggle('is-fullscreen', st.fullscreen); });
     } else {
@@ -118,6 +122,7 @@
     const start = new URLSearchParams(location.search).get('view');
     go(start || 'home', start === 'day' ? { date: H.today() } : null);
     setTimeout(() => H.game.login(), 1500);
+    if (H.sync) H.sync.start();
   }
 
   // decorative background for the silver theme: flowing silver hairlines with travelling glints
@@ -152,6 +157,7 @@
     bg.insertBefore(h('div.silver-bg', h('div.scene', { html: svgScene }), h('div.irid')), bg.firstChild);
   }
 
-  Object.assign(H, { go, applySettings });
+  function refresh() { if (current && !document.querySelector('.modal-back')) H.go(current, currentParams); }
+  Object.assign(H, { go, applySettings, refresh });
   window.addEventListener('DOMContentLoaded', init);
 })(window.H);

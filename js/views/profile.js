@@ -29,7 +29,15 @@
       if (m.asNeeded) { slotsHost.appendChild(h('span.faint', 'По необходимости — без расписания')); return; }
       const n = Number(m.times) || 1;
       if (!m.slots || m.slots.length !== n) m.slots = H.SLOT_NAMES[n].slice();
-      m.slots.forEach((sn, i) => slotsHost.appendChild(h('input.inp', { value: sn, style: { width: '120px' }, oninput: e => m.slots[i] = e.target.value || H.SLOT_NAMES[n][i] })));
+      if (!Array.isArray(m.remind)) m.remind = [];
+      m.slots.forEach((sn, i) => { if (!m.remind[i]) m.remind[i] = H.defaultSlotTime(sn, i, n); });
+      m.remind.length = n;
+      const eds = h('div.slot-eds');
+      m.slots.forEach((sn, i) => eds.appendChild(h('div.slot-ed',
+        h('input.inp', { value: sn, 'aria-label': 'Название приёма', oninput: e => m.slots[i] = e.target.value || H.SLOT_NAMES[n][i] }),
+        h('input.inp.slot-time', { type: 'time', value: m.remind[i] || '', 'aria-label': 'Время', onchange: e => { m.remind[i] = e.target.value; }, oninput: e => { m.remind[i] = e.target.value; } }))));
+      slotsHost.appendChild(eds);
+      slotsHost.appendChild(ui.toggle(m.noRemind !== true, v => { m.noRemind = !v; }, 'напоминать об этом препарате'));
     };
     drawSlots();
     const body = h('div.stack',
@@ -39,7 +47,7 @@
         ui.field('Тип', h('div.chips.kind-chips', H.MED_KINDS.map(k => ui.chip(k.name, m.kind === k.id, (e, c) => { m.kind = k.id; c.parentNode.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }))))),
       ui.field('Сколько раз в день', h('div.row', ui.segmented([1, 2, 3, 4].map(n => ({ id: n, name: n + ' ' + H.plural(n, 'раз', 'раза', 'раз'), toggleOff: false })), Number(m.times), v => { m.times = v; m.asNeeded = false; drawSlots(); }),
         ui.toggle(!!m.asNeeded, v => { m.asNeeded = v; drawSlots(); }, 'по необходимости'))),
-      ui.field('Названия приёмов', slotsHost, 'Можно переименовать, например «08:00» или «после завтрака»'),
+      ui.field('Приёмы и время', slotsHost, 'Название можно поменять, например «после завтрака». По времени приходят напоминания на телефон.'),
       h('div.grid2',
         ui.field('Начало приёма', ui.input(m.start, v => m.start = v, { type: 'date' })),
         ui.field('Окончание (если известно)', ui.input(m.end || '', v => m.end = v, { type: 'date' }))),
@@ -260,7 +268,7 @@
             h('span.m-dot', { style: { width: '12px', height: '12px', borderRadius: '50%', background: k.color } }),
             h('div.li-main',
               h('div.li-t', m.name + (m.dose ? ` · ${m.dose} мг` : '')),
-              h('div.li-s', [k.name, m.asNeeded ? 'по необходимости' : `${m.times} ${H.plural(Number(m.times), 'раз', 'раза', 'раз')} в день (${(m.slots || []).join(', ').toLowerCase()})`, m.start ? 'с ' + H.fmtLongY(m.start) : '', m.active === false ? 'не принимаю' : ''].filter(Boolean).join(' · ')),
+              h('div.li-s', [k.name, m.asNeeded ? 'по необходимости' : `${m.times} ${H.plural(Number(m.times), 'раз', 'раза', 'раз')} в день (${(m.slots || []).map((sn, i) => sn.toLowerCase() + (m.remind && m.remind[i] && m.noRemind !== true ? ' ' + m.remind[i] : '')).join(', ')})`, m.start ? 'с ' + H.fmtLongY(m.start) : '', m.active === false ? 'не принимаю' : ''].filter(Boolean).join(' · ')),
               (m.doseHistory || []).length ? h('div.li-s', 'Изменения дозы: ' + m.doseHistory.map(x => `${H.fmtShort(x.date)}: ${x.from || '?'} → ${x.to} мг`).join('; ')) : null,
               m.notes ? h('div.li-s.faint', m.notes) : null),
             h('button.btn.small', { onclick: () => H.medEditor(m, draw) }, 'Изменить')));
