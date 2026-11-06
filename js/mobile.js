@@ -4,6 +4,21 @@
   const { h, ui } = H;
   document.documentElement.classList.add('is-mobile');
 
+  // iOS home-screen apps sometimes get a viewport shorter than the screen (gap under the tab bar)
+  function fitHeight() {
+    const standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    let hgt = window.innerHeight;
+    if (standalone && screen && screen.height) {
+      const portrait = window.innerWidth < window.innerHeight;
+      const sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      if (sh > hgt && sh - hgt < 120) hgt = sh;
+    }
+    document.documentElement.style.setProperty('--app-h', hgt + 'px');
+  }
+  fitHeight();
+  window.addEventListener('resize', fitHeight);
+  window.addEventListener('orientationchange', () => setTimeout(fitHeight, 300));
+
   const TABS = [
     { id: 'home', ico: 'home', name: 'Главная' },
     { id: 'quick', ico: 'sun', name: 'Сегодня' },
@@ -87,7 +102,13 @@
     // sleep
     const sl = () => (R() && R().sleep) || {};
     const prev = S.days[H.addDays(date, -1)] && S.days[H.addDays(date, -1)].sleep;
-    const tIn = (k, def) => { const i = h('input.inp.q-time', { type: 'time', value: sl()[k] || '' , placeholder: def }); i.addEventListener('change', () => { const d = W(); d.sleep = d.sleep || {}; if (i.value) d.sleep[k] = i.value; else delete d.sleep[k]; changed('sleep'); sum(); }); return i; };
+    const tIn = (k, def) => {
+      const i = h('input.inp.q-time', { type: 'time', value: sl()[k] || '' });
+      const box = h('div.q-tf' + (i.value ? '.has' : ''), i, h('span.q-ph', '—:—'));
+      const upd = () => { box.classList.toggle('has', !!i.value); const d = W(); d.sleep = d.sleep || {}; if (i.value) d.sleep[k] = i.value; else delete d.sleep[k]; changed('sleep'); sum(); };
+      i.addEventListener('change', upd); i.addEventListener('blur', upd); i.addEventListener('input', () => box.classList.toggle('has', !!i.value));
+      return box;
+    };
     const sumEl = h('div.q-sleep-sum');
     const sum = () => { const m = H.metrics.totalSleep(R()); sumEl.textContent = m == null ? 'укажи, когда уснула и проснулась' : 'сон: ' + H.fmtDur(m); };
     const qual = h('div.q-scale.small');

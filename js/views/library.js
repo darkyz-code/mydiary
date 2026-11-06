@@ -103,7 +103,7 @@
         h('div.lb-hero-meta', badges(feat), feat.ev ? h('span.lb-ev', feat.ev) : null, h('span.lb-hero-go', 'Читать →'))),
       h('div.lb-hero-ico', H.icon(feat.ico, 54))) : null;
 
-    const search = h('input.inp.lb-search', { type: 'search', placeholder: 'Поиск по статьям: сон, ферритин, тревога…', value: S.q,
+    const search = h('input.inp.lb-search', { type: 'search', placeholder: 'Поиск по статьям', value: S.q,
       oninput: e => { S.q = e.target.value; draw(); } });
 
     const drawChips = () => {

@@ -170,7 +170,7 @@
     let cur = params && params.id ? params.id : null;
     const host = h('div.jr-body');
     const nav = h('div.jr-nav');
-    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма в будущее'], ['joy', 'star', 'Банка радостей'], ['vent', 'wind', 'Выговориться']];
+    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма'], ['joy', 'star', 'Радости'], ['vent', 'wind', 'Выговориться']];
     const go = (sec, extra) => { section = sec; if (extra && 'id' in extra) cur = extra.id; render(); };
     const drawNav = () => { H.clear(nav); NAV.forEach(([id, ic, name]) => nav.appendChild(h('button.jr-nav-it' + (section === id ? '.on' : ''), { onclick: () => go(id) }, H.icon(ic, 16), h('span', name)))); };
 
@@ -444,7 +444,7 @@
             <path d="M66 150c-6 30-6 140 0 180" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="7" stroke-linecap="round"/>
             <path d="M234 190c3 30 3 80 0 110" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="4" stroke-linecap="round"/>
           </svg>`), glass);
-        const input = h('input.inp.jj-inp', { placeholder: pick(D().joy, Math.floor(Math.random() * 1000)) || 'Маленькая радость сегодня…' });
+        const input = h('input.inp.jj-inp', { placeholder: 'Что сегодня порадовало?' });
         const add = () => {
           const v = input.value.trim(); if (!v) return;
           const j = { id: H.uid(), t: v, date: H.today() }; X.joys.push(j); H.store.save(); input.value = ''; draw();

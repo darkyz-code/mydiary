@@ -42,7 +42,7 @@ html.is-mobile .modal-body { padding: 8px 16px 14px; }
 html.is-mobile .modal-actions { padding: 10px 16px 16px; flex-wrap: wrap; }
 
 /* generic stacking */
-html.is-mobile .grid2, html.is-mobile .day-grid, html.is-mobile .home-cards, html.is-mobile .rep-hero, html.is-mobile .rep-two, html.is-mobile .jr-grid, html.is-mobile .jj2, html.is-mobile .jj, html.is-mobile .recipe-cols { grid-template-columns: 1fr !important; }
+html.is-mobile .grid2, html.is-mobile .day-grid, html.is-mobile .home-cards, html.is-mobile .rep-hero, html.is-mobile .rep-two, html.is-mobile .jr-grid, html.is-mobile .jj2, html.is-mobile .jj, html.is-mobile .recipe-cols { grid-template-columns: minmax(0, 1fr) !important; }
 html.is-mobile .row.wrapr, html.is-mobile .row { flex-wrap: wrap; }
 html.is-mobile .card, html.is-mobile .glass.card { padding: 16px; }
 html.is-mobile .segmented { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
@@ -74,7 +74,7 @@ html.is-mobile .srow .s-name { font-size: .9rem; color: var(--text-2); }
 html.is-mobile .sleep-row, html.is-mobile .sleep-row.two { grid-template-columns: 1fr 1fr !important; }
 html.is-mobile .sleep-row .sleep-total { grid-column: 1 / -1; }
 html.is-mobile .kv { grid-template-columns: 1fr 1fr; }
-html.is-mobile .emo-groups { grid-template-columns: 1fr !important; }
+html.is-mobile .emo-groups { grid-template-columns: minmax(0, 1fr) !important; }
 html.is-mobile .block { padding: 16px !important; }
 html.is-mobile .reset-btn { opacity: .7 !important; }
 
@@ -98,9 +98,6 @@ html.is-mobile .aura-sphere { width: 180px; height: 180px; }
 html.is-mobile .drv-row { grid-template-columns: 96px 1fr 40px; }
 
 /* journal */
-html.is-mobile .jr-nav { width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-html.is-mobile .jr-nav::-webkit-scrollbar { display: none; }
-html.is-mobile .jr-nav-it { flex: none; }
 html.is-mobile .jr-tiles { grid-template-columns: 1fr 1fr !important; }
 html.is-mobile .jr-hero { grid-template-columns: 1fr; padding: 22px; }
 html.is-mobile .jr-hero .jr-ink { display: none; }
@@ -134,7 +131,7 @@ html.is-mobile .blob { filter: blur(50px) !important; }
 .q-btn small { font-size: .66rem; }
 .q-btn.on { background: rgba(var(--accent-rgb), .2); border-color: rgba(var(--accent-rgb), .55); color: var(--text); transform: scale(1.04); }
 .q-btn:active { transform: scale(.95); }
-.q-sleep { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.q-sleep { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .q-sleep label { display: flex; flex-direction: column; gap: 4px; font-size: .72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .1em; }
 .q-time { text-align: center; }
 .q-sleep-sum { font-size: .86rem; color: var(--text-2); text-align: center; }
@@ -153,3 +150,98 @@ html.is-mobile .toasts, html.is-mobile #toasts { bottom: calc(var(--mnav-h) + va
 html.is-mobile .chart-card { padding: 14px 10px; }
 html.is-mobile .chart .dlabel { font-size: 10px; }
 html.is-mobile .tile .t-title { margin-top: 12px; }
+
+
+/* ===================== v2: fixes after testing on a real iPhone ===================== */
+/* full-height app: iOS standalone can report 100% shorter than the screen */
+html.is-mobile, html.is-mobile body { height: var(--app-h, 100%); background: var(--bg); }
+html.is-mobile #app { height: var(--app-h, 100%); }
+html.is-mobile .view { overflow-x: hidden; }
+
+/* bottom tab bar sits on the very bottom edge, like a native iOS tab bar */
+html.is-mobile { --mnav-h: 62px; }
+html.is-mobile #mnav { left: 0; right: 0; bottom: 0; height: calc(var(--mnav-h) + var(--safe-b)); padding: 0 6px var(--safe-b); border-radius: 22px 22px 0 0; border-width: 1px 0 0; box-shadow: 0 -10px 30px -18px rgba(0,0,0,.6), inset 0 1px 0 var(--hl); }
+html.is-mobile .mn-it { margin: 7px 2px; }
+html.is-mobile .view { padding-bottom: calc(var(--mnav-h) + var(--safe-b) + 22px) !important; }
+
+/* time fields: iOS gives them a native min-width that pushed them on top of each other */
+html.is-mobile input[type="time"], html.is-mobile input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; width: 100%; display: block; min-height: 46px; text-align: center; }
+html.is-mobile input[type="time"]::-webkit-date-and-time-value { text-align: center; }
+.q-tf { position: relative; min-width: 0; }
+.q-tf .q-ph { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; color: var(--text-3); font-size: 1rem; letter-spacing: .08em; }
+.q-tf.has .q-ph { display: none; }
+html.is-mobile .sleep-row > *, html.is-mobile .sleep-row label { min-width: 0; }
+
+/* buttons: never squeeze the label; one weight & size everywhere */
+html.is-mobile .btn { flex-shrink: 0; max-width: 100%; font-size: .92rem; font-weight: 620; letter-spacing: 0; }
+html.is-mobile .btn.small { font-size: .85rem; }
+html[data-theme="silver"].is-mobile .btn.primary { font-weight: 680; }
+/* title + button headers stack: text first, button under it */
+html.is-mobile .jr-panel-head { flex-direction: column; align-items: stretch; gap: 12px; }
+html.is-mobile .jr-panel-head > .btn { align-self: flex-start; }
+html.is-mobile .jr-panel-head h2 { font-size: 1.3rem; }
+html.is-mobile .jr-panel-head p { font-size: .9rem; line-height: 1.5; }
+
+/* single-line fields are pills, like the buttons */
+html.is-mobile input.inp:not([type="time"]):not([type="date"]), html.is-mobile .inp.dp { border-radius: 999px !important; padding: 10px 16px; text-overflow: ellipsis; }
+html.is-mobile textarea.ta, html.is-mobile .ta { border-radius: 18px !important; }
+
+/* journal: section switcher as a clear grid of tiles — everything visible, nothing hidden off-screen */
+html.is-mobile .jr-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; padding: 6px; border-radius: 22px; margin-bottom: 18px; }
+html.is-mobile .jr-nav-it { flex-direction: column; justify-content: center; gap: 5px; padding: 10px 2px 9px; min-height: 62px; border-radius: 16px; font-size: .72rem; line-height: 1.15; text-align: center; background: rgba(var(--ov), .045); box-shadow: inset 0 0 0 1px rgba(var(--ov), .06); color: var(--text-2); }
+html.is-mobile .jr-nav-it span { white-space: normal; }
+html.is-mobile .jr-nav-it svg { width: 19px; height: 19px; opacity: .85; }
+html.is-mobile .jr-nav-it.on { color: var(--text); background: rgba(var(--accent-rgb), .18); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .45); }
+html.is-mobile .jr-nav-it.on svg { opacity: 1; }
+
+/* journal entries: calm, compact list header; no duplicated buttons */
+html.is-mobile .jr-side { max-height: none; padding: 14px; }
+html.is-mobile .jr-side > .row .btn { padding: 11px 16px; }
+html.is-mobile .jr-search { padding: 8px 16px !important; min-height: 0; background: rgba(var(--ov), .035); border-color: rgba(var(--ov), .07); font-size: 16px; }
+html.is-mobile .jr-welcome { display: none; }
+html.is-mobile .jr-bar .btn:not(:first-of-type) { display: none; }       /* «Вопросы» / «Новая» already live above */
+html.is-mobile .jr-paper .jr-paper-top .jr-date { display: none; }        /* date is already in the line above */
+html.is-mobile .jr-paper-top { justify-content: flex-end; }
+html.is-mobile .jr-meta { font-size: .8rem; }
+html.is-mobile .jr-item { min-width: 0; }
+html.is-mobile .jr-moods { gap: 6px; }
+
+/* letters & other empty states: in a soft card, not loose text */
+html.is-mobile .jr-body .jr-empty, html.is-mobile .lt-grid ~ .jr-empty { padding: 18px; border-radius: 20px; background: rgba(var(--ov), .035); border: 1px dashed rgba(var(--ov), .12); color: var(--text-2); font-size: .9rem; }
+html.is-mobile .jr-side .jr-empty { background: none; border: 0; padding: 12px 4px; }
+html.is-mobile .lt-grid { grid-template-columns: minmax(0, 1fr) !important; }
+
+/* joy jar: field on its own line, button under it */
+html.is-mobile .jj-side .row { flex-direction: column; align-items: stretch; }
+html.is-mobile .jj-side .row .btn { width: 100%; }
+html.is-mobile .jj-take { width: 100%; }
+html.is-mobile .jj-jar-wrap { margin-bottom: 10px; }
+html.is-mobile .jj-count { position: relative; z-index: 2; margin-top: 8px; }
+
+/* «Как заработать кристаллы»: one clean column, value on the right */
+html.is-mobile .earn-list { grid-template-columns: minmax(0, 1fr); gap: 0; }
+html.is-mobile .earn-list .stat { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(var(--ov), .07); }
+html.is-mobile .earn-list .stat:last-child { border-bottom: 0; }
+html.is-mobile .earn-list .stat b { white-space: nowrap; flex: none; }
+
+/* wide tables scroll inside their card */
+html.is-mobile .tbl { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+html.is-mobile .reset-btn { margin-left: 4px; }
+html.is-mobile .block-head { min-width: 0; }
+html.is-mobile .block-body { grid-template-columns: minmax(0, 1fr) !important; }
+html.is-mobile .block-inner { min-width: 0; }
+
+/* day blocks: title + "изменено …" stacked, reset/chevron never pushed off the card */
+html.is-mobile .block-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 12px; row-gap: 1px; align-items: center; }
+html.is-mobile .block-head > .gicon { grid-row: 1 / span 2; }
+html.is-mobile .block-head > h3 { grid-column: 2; grid-row: 1; margin: 0; font-size: 1.05rem; line-height: 1.25; }
+html.is-mobile .block-head > .edited { grid-column: 2; grid-row: 2; margin: 0 !important; font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.is-mobile .block-head > .reset-btn { grid-column: 3; grid-row: 1 / span 2; margin: 0; }
+html.is-mobile .block-head > .chev { grid-column: 4; grid-row: 1 / span 2; }
+/* emotion rows: name + note button on top, strength slider full width below */
+html.is-mobile .emo-row .er-top { grid-template-columns: minmax(0, 1fr) auto !important; row-gap: 6px; }
+html.is-mobile .emo-row .er-top > .er-name { grid-column: 1; grid-row: 1; }
+html.is-mobile .emo-row .er-top > .note-btn { grid-column: 2; grid-row: 1; white-space: nowrap; }
+html.is-mobile .emo-row .er-top > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
+.q-tf:not(.has) input { color: transparent; }
+.q-tf:not(.has) input::-webkit-datetime-edit { color: transparent; }
