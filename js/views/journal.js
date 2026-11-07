@@ -165,14 +165,15 @@
   }
 
   H.views.journal = function (root, params) {
+    const M = document.documentElement.classList.contains('is-mobile');   // phone: focused writing, deck of questions
     const st = H.store.get().settings;
     let section = (params && params.section) || 'home';
     let cur = params && params.id ? params.id : null;
     const host = h('div.jr-body');
     const nav = h('div.jr-nav');
-    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма'], ['joy', 'star', 'Радости'], ['vent', 'wind', 'Выговориться']];
+    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма в будущее'], ['joy', 'star', 'Банка радостей'], ['vent', 'wind', 'Выговориться']];
     const go = (sec, extra) => { section = sec; if (extra && 'id' in extra) cur = extra.id; render(); };
-    const drawNav = () => { H.clear(nav); NAV.forEach(([id, ic, name]) => nav.appendChild(h('button.jr-nav-it' + (section === id ? '.on' : ''), { onclick: () => go(id) }, H.icon(ic, 16), h('span', name)))); };
+    let drawNav = () => { H.clear(nav); NAV.forEach(([id, ic, name]) => nav.appendChild(h('button.jr-nav-it' + (section === id ? '.on' : ''), { onclick: () => go(id) }, H.icon(ic, 16), h('span', name)))); };
 
     // empty pages left behind are removed automatically
     function sweep(keepId) {
@@ -231,7 +232,7 @@
           const d = new Date(e.created); const iso = H.iso(d);
           if (iso !== lastDay) { lastDay = iso; listHost.appendChild(h('div.jr-dayhead', iso === t0 ? 'Сегодня' : iso === y0 ? 'Вчера' : H.cap(H.weekday(iso)) + ', ' + H.fmtLong(iso) + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''))); }
           const m = MOODS.find(x => x.id === e.mood);
-          listHost.appendChild(h('button.jr-item' + (e.id === cur ? '.on' : '') + (st.journalBlur ? '.blur' : ''), { onclick: () => { const prev = cur; cur = e.id; if (prev !== e.id) sweep(e.id); drawList(); drawPage(); } },
+          listHost.appendChild(h('button.jr-item' + (e.id === cur ? '.on' : '') + (st.journalBlur ? '.blur' : ''), { onclick: () => { const prev = cur; cur = e.id; if (prev !== e.id) sweep(e.id); if (M) { render(); return; } drawList(); drawPage(); } },
             m ? h('i.jr-mood-dot', { style: { background: m.c, boxShadow: `0 0 10px ${m.c}` } }) : h('i.jr-mood-dot.none'),
             h('div.jr-it-main', h('div.jr-it-t', e.title || (e.prompt ? e.prompt : preview(e.text).slice(0, 40)) || 'Новая запись'), h('div.jr-it-p', preview(e.text) || '…')),
             h('span.jr-time', H.pad(d.getHours()) + ':' + H.pad(d.getMinutes()))));
@@ -275,7 +276,11 @@
           } }, H.icon('wind', 15), 'Отпустить'),
           h('button.btn.small', { onclick: () => go('prompts') }, H.icon('compass', 15), 'Вопросы'),
           h('button.btn.small', { onclick: () => newEntry() }, H.icon('feather', 15), 'Новая'));
-        pageHost.append(bar, paper);
+        if (M) {   // phone: only the page — a back arrow, a quiet line of meta and «отпустить»
+          const back = h('button.jr-back', { onclick: () => { cur = null; sweep(null); render(); } }, H.icon('chevron', 18), h('span', 'Записи'));
+          const rel = bar.querySelector('.btn');
+          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), rel), paper, h('div.jr-wmeta', meta));
+        } else pageHost.append(bar, paper);
         updMeta();
         requestAnimationFrame(() => { grow(); if (fc) ta.focus(); });
       };
@@ -286,7 +291,8 @@
           h('button.btn.primary.small', { style: { flex: 1 }, onclick: () => newEntry() }, H.icon('feather', 15), 'Новая запись'),
           h('button.icon-btn.small' + (st.journalBlur ? '.on' : ''), { title: 'Скрывать текст в списке (видно при наведении)', onclick: ev => { st.journalBlur = !st.journalBlur; ev.currentTarget.classList.toggle('on', st.journalBlur); H.store.save(); drawList(); } }, H.icon('eye', 15))),
         search, listHost);
-      drawList(); drawPage(focus);
+      drawList(); if (!M || cur) drawPage(focus);
+      if (M) return cur && J.find(x => x.id === cur) ? h('div.jr-writer', pageHost) : side;
       return h('div.jr-grid', side, h('div.jr-main', pageHost));
     }
 
@@ -309,9 +315,45 @@
             n ? h('span.jq-cnt', { title: `Ты отвечала ${n} ${H.plural(n, 'раз', 'раза', 'раз')}, последний — ${H.fmtLong(H.iso(new Date(lastAt[it.q])))}` }, Array.from({ length: Math.min(n, 5) }, () => h('i')), n > 5 ? h('small', '+' + (n - 5)) : null) : null);
         })));
       };
+      // phone: one question at a time — pick a topic or any, «другой вопрос» deals the next card
+      function deck() {
+        let topic = null, curQ = null; const seen = new Set();
+        const wrap = h('div.jr-deckwrap');
+        const pool = () => {
+          const src = topic ? (groups.find(g => g.id === topic) || { items: [] }).items.map(it => ({ ...it, g: topic })) : allPrompts();
+          const fresh = src.filter(p => !answered.has(p.q) || Date.now() - lastAt[p.q] > 14 * 86400000);
+          return fresh.length ? fresh : src;
+        };
+        const deal = () => {
+          const p = pool(); let c = p.filter(x => !seen.has(x.q)); if (!c.length) { seen.clear(); c = p; }
+          curQ = c[Math.floor(Math.random() * c.length)] || null; if (curQ) seen.add(curQ.q); drawCard(true);
+        };
+        const card = h('div.jr-deck');
+        const drawCard = anim => {
+          H.clear(card);
+          if (!curQ) { card.append(h('p.muted', 'Вопросов нет')); return; }
+          const g = groups.find(x => x.items.some(it => it.q === curQ.q));
+          const n = cnt[curQ.q] || 0;
+          card.append(...[
+            h('div.jd-kicker', g ? g.name : 'Вопрос'),
+            h('div.jd-q', curQ.q),
+            n ? h('div.jd-cnt', `Ты уже отвечала ${n} ${H.plural(n, 'раз', 'раза', 'раз')} — можно ещё`) : null,
+            h('div.jd-actions',
+              h('button.btn.primary', { onclick: () => newEntry(curQ.q, curQ.id) }, H.icon('feather', 15), 'Ответить'),
+              h('button.btn.ghost', { onclick: deal }, H.icon('dice', 15), 'Другой вопрос'))].filter(Boolean));
+          if (anim) { card.classList.remove('deal'); void card.offsetWidth; card.classList.add('deal'); }
+        };
+        const chips = h('div.jd-topics', [{ id: null, name: 'Любая тема', ic: 'sparkle' }].concat(groups).map(g => h('button.jr-gtab' + (g.id === topic ? '.on' : ''), { onclick: ev => { topic = g.id; chips.querySelectorAll('.jr-gtab').forEach(b => b.classList.remove('on')); ev.currentTarget.classList.add('on'); seen.clear(); deal(); } }, H.icon(g.ic, 14), g.name)));
+        const allBox = h('details.jd-all', h('summary', 'Показать все вопросы'), listHost);
+        allBox.addEventListener('toggle', () => { if (allBox.open) { gid = topic || (groups[0] && groups[0].id); draw(); } });
+        deal();
+        wrap.append(h('h2.jd-title', 'Вопрос для тебя'), card, h('div.jd-label', 'Другая тема'), chips, allBox);
+        return wrap;
+      }
       const tabs = h('div.jr-gtabs', groups.map(g => h('button.jr-gtab' + (g.id === gid ? '.on' : ''), { onclick: ev => { gid = g.id; tabs.querySelectorAll('.jr-gtab').forEach(b => b.classList.remove('on')); ev.currentTarget.classList.add('on'); draw(); } }, H.icon(g.ic, 14), g.name)));
       draw();
       const all = allPrompts().filter(p => !answered.has(p.q)).concat(allPrompts().filter(p => answered.has(p.q) && Date.now() - lastAt[p.q] > 14 * 86400000));
+      if (M) return deck();
       return h('div.stack',
         h('div.jr-panel-head', h('div', h('h2', 'Вопросы, на которые хочется ответить'), h('p.muted', 'На любой вопрос можно отвечать снова в разные дни — точки под вопросом показывают, сколько раз ты на него уже отвечала.')),
           h('button.btn.primary', { onclick: () => { const p = all[Math.floor(Math.random() * all.length)] || allPrompts()[0]; if (p) newEntry(p.q, p.id); } }, H.icon('dice', 15), 'Случайный вопрос')),
@@ -515,18 +557,34 @@
         h('div.row', { style: { justifyContent: 'center' } }, h('button.btn.small.ghost', { onclick: () => { if (!ta.value.trim()) return; const { J } = ST(); const now = Date.now(); J.unshift({ id: H.uid(), created: now, updated: now, title: '', text: ta.value, mood: 'storm', prompt: starter || null }); H.store.save(); cur = J[0].id; go('entries'); } }, 'Нет, всё-таки сохранить в записи')));
     }
 
+    let wrapEl = null;
     function render(focus) {
       sweep(section === 'entries' ? cur : null);
       drawNav(); H.clear(host);
+      if (wrapEl) wrapEl.classList.toggle('jr-writing', M && section === 'entries' && !!cur && !!ST().J.find(x => x.id === cur));
       const sec = { home, entries, prompts, about, letters, joy, vent }[section] || home;
       const el = sec(focus);
       el.classList && el.classList.add('jr-enter');
       host.appendChild(el);
       const v = root.closest('.view'); if (v) v.scrollTop = 0;
     }
-    render();
-    root.appendChild(h('div.wrap.jr-wrap',
+    // phone: one row of sections you can swipe; edges fade and an arrow shows there is more
+    const navBox = M ? h('div.jr-navbox', nav, h('button.jr-navmore.l', { 'aria-label': 'Назад', onclick: () => nav.scrollBy({ left: -nav.clientWidth * .6, behavior: 'smooth' }) }, H.icon('chevron', 16)), h('button.jr-navmore.r', { 'aria-label': 'Ещё разделы', onclick: () => nav.scrollBy({ left: nav.clientWidth * .6, behavior: 'smooth' }) }, H.icon('chevron', 16))) : nav;
+    const edges = () => { if (!M) return; navBox.classList.toggle('more-l', nav.scrollLeft > 4); navBox.classList.toggle('more-r', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4); };
+    if (M) {
+      nav.addEventListener('scroll', edges, { passive: true });
+      const origDraw = drawNav;
+      drawNav = () => { origDraw(); requestAnimationFrame(() => { const on = nav.querySelector('.on'); if (on && (on.offsetLeft < nav.scrollLeft || on.offsetLeft + on.offsetWidth > nav.scrollLeft + nav.clientWidth)) nav.scrollTo({ left: on.offsetLeft - 16, behavior: 'smooth' }); edges(); }); };
+    }
+    wrapEl = h('div.wrap.jr-wrap',
       h('div.view-head', h('div', h('h1', 'Личные заметки'), h('div.sub', 'Место, чтобы выговориться, подумать и узнать себя. Всё хранится только на этом iPhone и не попадает в отчёты.'))),
-      nav, host));
+      navBox, host);
+    render();
+    root.appendChild(wrapEl);
+    if (M) {
+      requestAnimationFrame(edges);
+      // first visit: a gentle nudge so it is obvious the row scrolls
+      try { if (!localStorage.getItem('mydiary.navHint')) { localStorage.setItem('mydiary.navHint', '1'); setTimeout(() => { nav.scrollTo({ left: 70, behavior: 'smooth' }); setTimeout(() => nav.scrollTo({ left: 0, behavior: 'smooth' }), 650); }, 700); } } catch (e) {}
+    }
   };
 })(window.H);

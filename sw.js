@@ -1,6 +1,6 @@
 'use strict';
 // offline cache for My Diary (iPhone). The version changes with every build so updates arrive.
-const CACHE = 'mydiary-202611061319';
+const CACHE = 'mydiary-202611061354';
 const FILES = ["./", "apple-touch-icon.png", "fonts/Inter-LICENSE.txt", "fonts/InterVariable.ttf", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "js/app.js", "js/articles.js", "js/care-coupons.js", "js/caseart.js", "js/catalog.js", "js/charts.js", "js/components.js", "js/config.js", "js/dishart.js", "js/game.js", "js/icons.js", "js/journal-data.js", "js/metrics.js", "js/mobile.js", "js/photos.js", "js/recipes-d1.js", "js/recipes-d2.js", "js/recipes-d3.js", "js/recipes.js", "js/relics.js", "js/reminders.js", "js/report.js", "js/silhouette.js", "js/sleepline.js", "js/spinners.js", "js/store.js", "js/sync.js", "js/tests-data.js", "js/util.js", "js/views/analytics.js", "js/views/calendar.js", "js/views/day.js", "js/views/export.js", "js/views/games.js", "js/views/home.js", "js/views/journal.js", "js/views/library.js", "js/views/profile.js", "js/views/settings.js", "js/views/sync-ui.js", "js/views/tests.js", "js/webapi.js", "manifest.webmanifest", "mobile.css", "silver.css", "styles.css"];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
@@ -36,12 +36,15 @@ async function medText(t) {
     sl.forEach((sn, i) => { if (((m.remind && m.remind[i]) || slotTime(sn, i, n)) === t) { hit.push(m.name + (m.dose ? ' ' + m.dose + ' ' + (m.unit || 'мг') : '')); slot = sn; } });
   });
   if (!hit.length) return null;
-  return names ? hit.join(', ') + ' · ' + String(slot).toLowerCase() : 'Приём: ' + String(slot).toLowerCase() + ' · отметь в дневнике';
+  return names ? hit.join(', ') : '';
 }
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (er) { d = { title: 'My Diary', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil((d.kind === 'med' ? medText(d.t).catch(() => null) : Promise.resolve(null)).then(body =>
-    self.registration.showNotification(d.title || 'My Diary', { body: body || d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'mydiary', renotify: true, data: { url: d.url || './?view=quick' } })));
+  // short and plain: the title says what to do, the body lists the medicines (iOS adds the app name and icon itself)
+  const isMed = d.kind === 'med' || d.tag === 'test';
+  const title = d.tag === 'test' ? 'Пора выпить таблетки 💊' : d.kind === 'med' ? (d.again ? 'Не забудь выпить таблетки 💊' : 'Пора выпить таблетки 💊') : (d.title || 'My Diary');
+  e.waitUntil((isMed ? medText(d.t).catch(() => null) : Promise.resolve(null)).then(body =>
+    self.registration.showNotification(title, { body: d.tag === 'test' ? (body || 'Так будут выглядеть напоминания') : (body != null ? body : (isMed ? '' : d.body || '')), icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || 'mydiary', renotify: true, data: { url: d.url || './?view=quick' } })));
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();

@@ -186,20 +186,56 @@ html.is-mobile .jr-panel-head p { font-size: .9rem; line-height: 1.5; }
 html.is-mobile input.inp:not([type="time"]):not([type="date"]), html.is-mobile .inp.dp { border-radius: 999px !important; padding: 10px 16px; text-overflow: ellipsis; }
 html.is-mobile textarea.ta, html.is-mobile .ta { border-radius: 18px !important; }
 
-/* journal: section switcher as a clear grid of tiles — everything visible, nothing hidden off-screen */
-html.is-mobile .jr-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; padding: 6px; border-radius: 22px; margin-bottom: 18px; }
-html.is-mobile .jr-nav-it { flex-direction: column; justify-content: center; gap: 5px; padding: 10px 2px 9px; min-height: 62px; border-radius: 16px; font-size: .72rem; line-height: 1.15; text-align: center; background: rgba(var(--ov), .045); box-shadow: inset 0 0 0 1px rgba(var(--ov), .06); color: var(--text-2); }
-html.is-mobile .jr-nav-it span { white-space: normal; }
-html.is-mobile .jr-nav-it svg { width: 19px; height: 19px; opacity: .85; }
-html.is-mobile .jr-nav-it.on { color: var(--text); background: rgba(var(--accent-rgb), .18); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .45); }
-html.is-mobile .jr-nav-it.on svg { opacity: 1; }
+/* journal: one swipeable row of sections; faded edges + arrows show there is more */
+html.is-mobile .jr-navbox { position: relative; margin: 0 calc(-1 * var(--vpad, 14px)) 18px; }
+html.is-mobile .jr-nav { display: flex; flex-wrap: nowrap; gap: 8px; width: auto; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding: 0 16px; padding: 4px 16px; margin: 0; border: 0; background: none; border-radius: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+html.is-mobile .jr-nav::-webkit-scrollbar { display: none; }
+html.is-mobile .jr-nav-it { flex: none; scroll-snap-align: start; flex-direction: row; gap: 7px; padding: 10px 15px; min-height: 0; border-radius: 999px; font-size: .86rem; white-space: nowrap; background: rgba(var(--ov), .05); box-shadow: inset 0 0 0 1px rgba(var(--ov), .09); color: var(--text-2); }
+html.is-mobile .jr-nav-it svg { width: 16px; height: 16px; }
+html.is-mobile .jr-nav-it.on { color: var(--text); background: rgba(var(--accent-rgb), .2); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .5); }
+html.is-mobile .jr-navbox::before, html.is-mobile .jr-navbox::after { content: ''; position: absolute; top: 0; bottom: 0; width: 46px; pointer-events: none; opacity: 0; transition: opacity .3s; z-index: 1; }
+html.is-mobile .jr-navbox::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+html.is-mobile .jr-navbox::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+html.is-mobile .jr-navbox.more-l::before, html.is-mobile .jr-navbox.more-r::after { opacity: 1; }
+html.is-mobile .jr-navmore { position: absolute; top: 50%; z-index: 2; width: 30px; height: 30px; margin-top: -15px; border-radius: 50%; border: 1px solid rgba(var(--ov), .14); background: var(--surface-strong); color: var(--text); display: grid; place-items: center; opacity: 0; pointer-events: none; transition: opacity .3s; box-shadow: 0 6px 16px -6px rgba(0,0,0,.5); }
+html.is-mobile .jr-navmore.r { right: 8px; } html.is-mobile .jr-navmore.l { left: 8px; } html.is-mobile .jr-navmore.r svg { transform: rotate(-90deg); } html.is-mobile .jr-navmore.l svg { transform: rotate(90deg); }
+html.is-mobile .jr-navbox.more-r .jr-navmore.r, html.is-mobile .jr-navbox.more-l .jr-navmore.l { opacity: 1; pointer-events: auto; }
+
+/* writing: only the page */
+html.is-mobile .jr-wrap.jr-writing > .view-head, html.is-mobile .jr-wrap.jr-writing > .jr-navbox { display: none; }
+html.is-mobile .jr-wbar { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
+html.is-mobile .jr-back { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--text-2); font: inherit; font-size: .95rem; padding: 8px 6px 8px 0; }
+html.is-mobile .jr-back svg { transform: rotate(90deg); }
+html.is-mobile .jr-wbar .btn { padding: 8px 14px; }
+html.is-mobile .jr-wmeta { text-align: center; margin-top: 10px; color: var(--text-3); }
+html.is-mobile .jr-writer .jr-paper { min-height: calc(var(--app-h, 100vh) - var(--mnav-h) - var(--safe-b) - var(--safe-t) - 120px); }
+html.is-mobile .jr-writer .jr-moods { opacity: .85; }
+
+/* questions: one card at a time */
+html.is-mobile .jd-title { margin: 0 0 10px; font-size: 1.15rem; color: var(--text-2); font-weight: 600; }
+html.is-mobile .jr-deck { padding: 24px 20px 20px; border-radius: 26px; background: linear-gradient(160deg, rgba(var(--accent-rgb), .14), rgba(var(--ov), .03)); border: 1px solid rgba(var(--ov), .1); box-shadow: inset 0 1px 0 var(--hl), 0 20px 40px -26px rgba(0,0,0,.6); }
+html.is-mobile .jr-deck.deal { animation: jdDeal .6s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes jdDeal { from { opacity: 0; transform: translateY(14px) scale(.97) rotate(-.6deg); } }
+html.is-mobile .jd-kicker { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px; }
+html.is-mobile .jd-q { font-size: 1.32rem; line-height: 1.38; font-weight: 600; color: var(--text); }
+html.is-mobile .jd-cnt { margin-top: 10px; font-size: .8rem; color: var(--text-3); }
+html.is-mobile .jd-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+html.is-mobile .jd-actions .btn { flex: 1 1 140px; justify-content: center; padding: 12px 14px; }
+html.is-mobile .jd-label { margin: 22px 0 8px; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+html.is-mobile .jd-topics { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(-1 * var(--vpad, 14px)); padding: 2px var(--vpad, 14px) 4px; scrollbar-width: none; }
+html.is-mobile .jd-topics::-webkit-scrollbar { display: none; }
+html.is-mobile .jd-topics .jr-gtab { flex: none; white-space: nowrap; }
+html.is-mobile .jd-all { margin-top: 18px; }
+html.is-mobile .jd-all summary { list-style: none; color: var(--text-3); font-size: .86rem; padding: 6px 0; }
+html.is-mobile .jd-all summary::after { content: ' ›'; }
+html.is-mobile .jd-all[open] summary { margin-bottom: 8px; }
+html.is-mobile .jr-qgrid { grid-template-columns: minmax(0, 1fr) !important; }
 
 /* journal entries: calm, compact list header; no duplicated buttons */
 html.is-mobile .jr-side { max-height: none; padding: 14px; }
 html.is-mobile .jr-side > .row .btn { padding: 11px 16px; }
 html.is-mobile .jr-search { padding: 8px 16px !important; min-height: 0; background: rgba(var(--ov), .035); border-color: rgba(var(--ov), .07); font-size: 16px; }
 html.is-mobile .jr-welcome { display: none; }
-html.is-mobile .jr-bar .btn:not(:first-of-type) { display: none; }       /* «Вопросы» / «Новая» already live above */
 html.is-mobile .jr-paper .jr-paper-top .jr-date { display: none; }        /* date is already in the line above */
 html.is-mobile .jr-paper-top { justify-content: flex-end; }
 html.is-mobile .jr-meta { font-size: .8rem; }
@@ -245,3 +281,19 @@ html.is-mobile .emo-row .er-top > .note-btn { grid-column: 2; grid-row: 1; white
 html.is-mobile .emo-row .er-top > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; min-width: 0; }
 .q-tf:not(.has) input { color: transparent; }
 .q-tf:not(.has) input::-webkit-datetime-edit { color: transparent; }
+
+/* narrow phones (iPhone SE / small Android, 320–360 px) */
+html.is-mobile .row.wrapr > *, html.is-mobile .row > * { min-width: 0; max-width: 100%; }
+html.is-mobile .sil-grid { flex-wrap: wrap; }
+html.is-mobile .card-title { flex-wrap: wrap; row-gap: 6px; }
+html.is-mobile input { text-overflow: ellipsis; }
+@media (max-width: 360px) {
+  html.is-mobile { --vpad: 10px; }
+  html.is-mobile .view { padding-left: 10px !important; padding-right: 10px !important; }
+  html.is-mobile .card, html.is-mobile .glass.card, html.is-mobile .block { padding: 14px !important; }
+  html.is-mobile .q-scale { gap: 4px; }
+  html.is-mobile .q-btn small { font-size: .6rem; }
+  html.is-mobile .mn-it { font-size: .58rem; }
+  html.is-mobile .jd-q { font-size: 1.18rem; }
+  html.is-mobile .home-date { font-size: 2rem !important; }
+}

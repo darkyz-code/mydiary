@@ -55,13 +55,22 @@
 
   // follow navigation to highlight the tab and add phone-only bits
   const origGo = H.go;
+  // Android «back»: closes an open sheet/window first, then returns to the previous screen
+  let fromHistory = false;
   H.go = function (view, params) {
     cur = view;
     origGo(view, params);
     drawBar();
     const v = document.querySelector('.view'); if (v) v.scrollTop = 0;
     if (view === 'home') homeExtras();
+    if (!fromHistory) { try { const st = { mdv: view, p: params || null }; if (history.state && history.state.mdv) history.pushState(st, ''); else history.replaceState(st, ''); } catch (e) {} }
   };
+  window.addEventListener('popstate', ev => {
+    const open = document.querySelector('.modal-back:not(.closing) .modal-x, .msheet-back:not(.closing)');
+    if (open) { try { history.pushState(history.state || { mdv: cur }, ''); } catch (e) {} if (open.classList.contains('msheet-back')) open.click(); else open.click(); return; }
+    const st = ev.state;
+    if (st && st.mdv) { fromHistory = true; try { H.go(st.mdv, st.p); } finally { fromHistory = false; } }
+  });
 
   // ---------- weekly reminder to save a copy ----------
   function homeExtras() {
