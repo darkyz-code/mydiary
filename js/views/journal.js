@@ -14,6 +14,45 @@
   const stamp = ms => { const d = new Date(ms); return H.cap(H.weekday(H.iso(d))) + ', ' + H.fmtLongY(H.iso(d)) + ', ' + H.pad(d.getHours()) + ':' + H.pad(d.getMinutes()); };
   const dayNum = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
   const pick = (arr, seed) => arr.length ? arr[((seed % arr.length) + arr.length) % arr.length] : '';
+  // ---- rich text: a tiny, safe subset (bold, italic, paragraphs with alignment, line breaks)
+  const ALIGN_OK = /^(left|center|right|justify)$/;
+  function cleanHtml(html) {
+    const box = document.createElement('div'); box.innerHTML = String(html || '');
+    const walk = node => {
+      [...node.childNodes].forEach(n => {
+        if (n.nodeType === 3) return;
+        if (n.nodeType !== 1) { n.remove(); return; }
+        walk(n);
+        const tag = n.tagName;
+        const map = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', BR: 'br', DIV: 'div', P: 'div' };
+        let t = map[tag];
+        if (!t && tag === 'SPAN') { const st = n.style || {}; if (/bold|[6-9]00/.test(st.fontWeight)) t = 'b'; else if (st.fontStyle === 'italic') t = 'i'; }
+        if (!t) { n.replaceWith(...n.childNodes); return; }
+        const el = document.createElement(t);
+        if (t === 'div') { const al = (n.style && n.style.textAlign) || n.getAttribute('align') || ''; if (ALIGN_OK.test(al) && al !== 'left') el.style.textAlign = al; }
+        el.append(...n.childNodes); n.replaceWith(el);
+      });
+    };
+    walk(box);
+    return box.innerHTML;
+  }
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function textToHtml(text, align) {
+    if (!text) return '';
+    const lines = String(text).split('\n').map(l => l ? esc(l) : '<br>');
+    const st = align && align !== 'left' && ALIGN_OK.test(align) ? ` style="text-align:${align}"` : '';
+    return lines.map(l => `<div${st}>${l}</div>`).join('');
+  }
+  function htmlToText(el) {
+    let out = '';
+    const walk = (n, top) => n.childNodes.forEach(c => {
+      if (c.nodeType === 3) out += c.nodeValue;
+      else if (c.tagName === 'BR') out += '\n';
+      else { const block = c.tagName === 'DIV' || c.tagName === 'P'; if (block && out && !out.endsWith('\n')) out += '\n'; walk(c); if (block && !out.endsWith('\n')) out += '\n'; }
+    });
+    walk(el, true);
+    return out.replace(/\n+$/, '');
+  }
   const allPrompts = () => D().prompts.flatMap(g => g.items.map(it => ({ ...it, g })));
 
   // ---------- release animations (burn / wind / tear) ----------
@@ -252,45 +291,64 @@
         const title = h('input.jr-title' + (e.title ? '' : '.hide'), { placeholder: '', value: e.title || '' });
         title.addEventListener('input', () => { e.title = title.value; save(); });
         title.addEventListener('blur', () => { if (!title.value.trim()) title.classList.add('hide'); });
-        const ta = h('textarea.jr-text', { placeholder: e.prompt ? 'Пиши как есть…' : 'Что у тебя на душе?…' });
-        ta.value = e.text || '';
-        ta.style.textAlign = e.align || 'left';
-        const AL = [['left', '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>'], ['center', '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>'], ['right', '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'], ['justify', '<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>']];
+        // rich page: bold / italic and alignment apply to the selected text (or the current paragraph)
+        const ed = h('div.jr-text.jr-rich', { contenteditable: 'true', spellcheck: 'true', 'data-ph': e.prompt ? 'Пиши как есть…' : 'Что у тебя на душе?…' });
+        ed.innerHTML = e.html ? cleanHtml(e.html) : textToHtml(e.text || '', e.align);
+        const sync = () => { e.html = cleanHtml(ed.innerHTML); e.text = htmlToText(ed); if (!e.text.trim()) { e.html = ''; } ed.classList.toggle('is-empty', !e.text.trim()); save(); };
+        ed.classList.toggle('is-empty', !(e.text || '').trim());
+        ed.addEventListener('input', sync);
+        ed.addEventListener('paste', ev => { ev.preventDefault(); const t = (ev.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, t); });
+        ed.addEventListener('focus', () => { try { document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (er) {} });
+        const ICON = p => H.svg(`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">${p}</svg>`);
+        const AL = [['justifyLeft', 'По левому краю', '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>'], ['justifyCenter', 'По центру', '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>'], ['justifyRight', 'По правому краю', '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'], ['justifyFull', 'По ширине', '<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>']];
+        const cmdBtn = (cmd, ttl, inner) => {
+          const b = h('button.jr-tool', { title: ttl, dataset: { cmd } }, inner);
+          b.addEventListener('pointerdown', ev => ev.preventDefault());      // keep the selection inside the page
+          b.addEventListener('mousedown', ev => ev.preventDefault());
+          b.addEventListener('click', () => { if (document.activeElement !== ed) ed.focus(); document.execCommand(cmd, false, null); sync(); paint(); });
+          return b;
+        };
         const tools = h('div.jr-tools',
-          h('button.jr-tool' + (e.title ? '.on' : ''), { title: 'Название записи', onclick: ev => { title.classList.remove('hide'); title.focus(); } }, h('span.jr-tt', 'Аа')),
+          h('button.jr-tool' + (e.title ? '.on' : ''), { title: 'Название записи', onclick: () => { title.classList.remove('hide'); title.focus(); } }, h('span.jr-tt', 'Аа')),
           h('i.jr-tsep'),
-          AL.map(([id, path]) => h('button.jr-tool' + ((e.align || 'left') === id ? '.on' : ''), { title: { left: 'По левому краю', center: 'По центру', right: 'По правому краю', justify: 'По ширине' }[id], onclick: ev => { e.align = id; ta.style.textAlign = id; ev.currentTarget.parentNode.querySelectorAll('.jr-tool.al').forEach(b => b.classList.toggle('on', b === ev.currentTarget)); save(); } }, H.svg(`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">${path}</svg>`))));
-        tools.querySelectorAll('.jr-tool').forEach((b, i) => { if (i > 0) b.classList.add('al'); });
+          cmdBtn('bold', 'Жирный', h('b.jr-tb', 'Ж')), cmdBtn('italic', 'Курсив', h('i.jr-ti', 'К')),
+          h('i.jr-tsep'),
+          AL.map(([cmd, ttl, p]) => cmdBtn(cmd, ttl, ICON(p))));
+        const paint = () => {
+          const inside = document.activeElement === ed;
+          tools.querySelectorAll('[data-cmd]').forEach(b => { let on = false; try { on = inside && document.queryCommandState(b.dataset.cmd); } catch (er) {} b.classList.toggle('on', on); });
+        };
+        const onSel = () => { if (!ed.isConnected) { document.removeEventListener('selectionchange', onSel); return; } paint(); };
+        document.addEventListener('selectionchange', onSel);
         const others = e.prompt ? J.filter(x => x.prompt === e.prompt && x.id !== e.id && (x.text || '').trim()).sort((a, b) => b.created - a.created) : [];
         const past = others.length ? h('details.jr-past', h('summary', `Прошлые ответы на этот вопрос · ${others.length}`), others.map(o => h('button.jr-past-it', { onclick: () => { cur = o.id; sweep(o.id); render(); } }, h('span.faint', H.fmtLongY(H.iso(new Date(o.created)))), h('span', preview(o.text))))) : null;
-        const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(380, ta.scrollHeight) + 'px'; };
-        ta.addEventListener('input', () => { e.text = ta.value; grow(); save(); });
         const moods = h('div.jr-moods', h('span.faint', 'Погода внутри:'), MOODS.map(m => h('button.jr-mood' + (e.mood === m.id ? '.on' : ''), { title: m.name, style: { '--mc': m.c }, onclick: ev => { e.mood = e.mood === m.id ? null : m.id; ev.currentTarget.parentNode.querySelectorAll('.jr-mood').forEach((b, i) => b.classList.toggle('on', MOODS[i].id === e.mood)); save(); } }, h('i'), h('span', m.name))));
-        const paper = h('div.jr-paper', h('div.jr-paper-top', h('div.jr-date', stamp(e.created)), tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, moods, ta);
-        const bar = h('div.jr-bar', meta, h('div', { style: { flex: 1 } }),
-          h('button.btn.small.ghost', { title: 'Удалить насовсем — красиво', onclick: async () => {
-            const kind = await chooseRelease(); if (!kind) return;
-            await release(paper, kind, e.title, e.text);
-            const s = H.store.get(); s.journal = s.journal.filter(x => x.id !== e.id); H.store.save(); cur = null;
-            ui.toast('Отпущено', '🕊'); render();
-          } }, H.icon('wind', 15), 'Отпустить'),
+        const paper = h('div.jr-paper', h('div.jr-paper-top', tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, moods, ed);
+        const del = h('button.icon-btn.small.jr-del', { title: 'Удалить запись', onclick: async () => {
+          if (!await ui.confirm('Удалить эту запись? Её нельзя будет вернуть.', 'Удалить', true)) return;
+          const s2 = H.store.get(); s2.journal = s2.journal.filter(x => x.id !== e.id); H.store.save(); cur = null; ui.toast('Запись удалена'); render();
+        } }, H.icon('trash', 15));
+        const bar = h('div.jr-bar', meta, h('div', { style: { flex: 1 } }), del,
           h('button.btn.small', { onclick: () => go('prompts') }, H.icon('compass', 15), 'Вопросы'),
           h('button.btn.small', { onclick: () => newEntry() }, H.icon('feather', 15), 'Новая'));
-        if (M) {   // phone: only the page — a back arrow, a quiet line of meta and «отпустить»
+        if (M) {   // phone: only the page — a back arrow and a quiet line of meta
           const back = h('button.jr-back', { onclick: () => { cur = null; sweep(null); render(); } }, H.icon('chevron', 18), h('span', 'Записи'));
-          const rel = bar.querySelector('.btn');
-          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), rel), paper, h('div.jr-wmeta', meta));
+          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), del), paper, h('div.jr-wmeta', meta));
         } else pageHost.append(bar, paper);
         updMeta();
-        requestAnimationFrame(() => { grow(); if (fc) ta.focus(); });
+        requestAnimationFrame(() => { if (fc) { ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } });
       };
-      const search = h('input.inp.jr-search', { placeholder: 'Поиск по записям' });
+      // search stays out of the way: a small magnifier, the field opens only when needed
+      const search = h('input.inp.jr-search', { placeholder: 'Найти в записях', type: 'search' });
       search.addEventListener('input', () => { q = search.value; drawList(); });
+      const sBox = h('div.jr-sbox', search);
+      const sBtn = h('button.icon-btn.small', { title: 'Поиск по записям', onclick: () => { const open = !sBox.classList.contains('open'); sBox.classList.toggle('open', open); sBtn.classList.toggle('on', open); if (open) setTimeout(() => search.focus(), 60); else { search.value = ''; q = ''; drawList(); } } }, H.icon('search', 15));
       const side = h('div.glass.jr-side',
         h('div.row', { style: { gap: '8px', marginBottom: '10px' } },
           h('button.btn.primary.small', { style: { flex: 1 }, onclick: () => newEntry() }, H.icon('feather', 15), 'Новая запись'),
+          sBtn,
           h('button.icon-btn.small' + (st.journalBlur ? '.on' : ''), { title: 'Скрывать текст в списке (видно при наведении)', onclick: ev => { st.journalBlur = !st.journalBlur; ev.currentTarget.classList.toggle('on', st.journalBlur); H.store.save(); drawList(); } }, H.icon('eye', 15))),
-        search, listHost);
+        sBox, listHost);
       drawList(); if (!M || cur) drawPage(focus);
       if (M) return cur && J.find(x => x.id === cur) ? h('div.jr-writer', pageHost) : side;
       return h('div.jr-grid', side, h('div.jr-main', pageHost));
@@ -353,7 +411,7 @@
       const tabs = h('div.jr-gtabs', groups.map(g => h('button.jr-gtab' + (g.id === gid ? '.on' : ''), { onclick: ev => { gid = g.id; tabs.querySelectorAll('.jr-gtab').forEach(b => b.classList.remove('on')); ev.currentTarget.classList.add('on'); draw(); } }, H.icon(g.ic, 14), g.name)));
       draw();
       const all = allPrompts().filter(p => !answered.has(p.q)).concat(allPrompts().filter(p => answered.has(p.q) && Date.now() - lastAt[p.q] > 14 * 86400000));
-      if (M) return deck();
+      return deck();
       return h('div.stack',
         h('div.jr-panel-head', h('div', h('h2', 'Вопросы, на которые хочется ответить'), h('p.muted', 'На любой вопрос можно отвечать снова в разные дни — точки под вопросом показывают, сколько раз ты на него уже отвечала.')),
           h('button.btn.primary', { onclick: () => { const p = all[Math.floor(Math.random() * all.length)] || allPrompts()[0]; if (p) newEntry(p.q, p.id); } }, H.icon('dice', 15), 'Случайный вопрос')),

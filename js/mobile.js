@@ -130,29 +130,38 @@
       H.clear(medsHost);
       const meds = H.metrics.activeMeds(date).filter(m => !m.asNeeded);
       if (!meds.length) { medsHost.appendChild(h('p.faint', { style: { margin: 0 } }, 'Препараты добавляются в «Ещё → Карточка здоровья».')); return; }
+      // one row per medicine with a toggle for each dose — the same as in the full form
       meds.forEach(m => {
         const n = Number(m.times) || 1;
-        for (let i = 0; i < n; i++) {
-          const rec = R() && R().meds && R().meds[m.id];
+        const kind = H.MED_KINDS.find(k => k.id === m.kind) || H.MED_KINDS[4];
+        const names = m.slots && m.slots.length === n ? m.slots : H.SLOT_NAMES[n];
+        const rec = R() && R().meds && R().meds[m.id];
+        const slots = names.map((sn, i) => {
           const on = !!(rec && rec.slots && rec.slots[i]);
-          medsHost.appendChild(h('button.q-med' + (on ? '.on' : ''), { onclick: () => {
+          return h('button.slot' + (on ? '.on' : ''), { onclick: () => {
             const d = W(); d.meds = d.meds || {}; const r = d.meds[m.id] || (d.meds[m.id] = { slots: Array(n).fill(false), dose: m.dose });
             r.slots[i] = !r.slots[i]; r.dose = m.dose; changed('meds'); drawMeds();
-          } }, h('span.qm-chk', on ? '✓' : ''), h('span', h('b', m.name), h('small', (m.slots && m.slots[i]) || `приём ${i + 1}`))));
-        }
+          } }, h('span.chk', on ? '✓' : ''), sn);
+        });
+        medsHost.appendChild(h('div.q-medrow', h('span.m-dot', { style: { background: kind.color } }), h('div.q-mname', h('b', m.name), m.dose ? h('small', m.dose + ' ' + (m.unit || 'мг')) : null), h('div.q-mslots', slots)));
       });
     };
     drawMeds();
 
-    // emotions (common ones)
-    const COMMON = ['joy', 'calm', 'interest', 'grateful', 'cozy', 'relief', 'sad', 'apathy', 'anxiety', 'irritation', 'emotired', 'lonely'];
+    // emotions: the usual ones first, «ещё» opens every other one
+    const COMMON = ['joy', 'calm', 'neutral', 'interest', 'grateful', 'cozy', 'relief', 'sad', 'apathy', 'anxiety', 'irritation', 'emotired', 'lonely'];
     const emoHost = h('div.chips.q-emo');
+    let emoAll = false;
     const drawEmo = () => {
       H.clear(emoHost);
-      COMMON.map(id => H.EMOTIONS.find(e => e.id === id)).filter(Boolean).forEach(e => {
-        const on = !!(R() && R().emotions && R().emotions[e.id]);
-        emoHost.appendChild(ui.chip(`${e.e} ${e.name}`, on, () => { const d = W(); d.emotions = d.emotions || {}; if (d.emotions[e.id]) delete d.emotions[e.id]; else d.emotions[e.id] = { score: 6, note: '' }; changed('emotions'); drawEmo(); }));
+      const marked = id => !!(R() && R().emotions && R().emotions[id]);
+      const vis = H.EMOTIONS.filter(e => !e.hidden);
+      const list = emoAll ? vis : vis.filter(e => COMMON.includes(e.id) || marked(e.id)).sort((a, b) => (COMMON.indexOf(a.id) + 1 || 99) - (COMMON.indexOf(b.id) + 1 || 99));
+      list.forEach(e => {
+        emoHost.appendChild(ui.chip(`${e.e} ${e.name}`, marked(e.id), () => { const d = W(); d.emotions = d.emotions || {}; if (d.emotions[e.id]) delete d.emotions[e.id]; else d.emotions[e.id] = { score: 6, note: '' }; changed('emotions'); drawEmo(); }));
       });
+      const more = vis.length - list.length;
+      emoHost.appendChild(h('button.chip.q-more', { onclick: () => { emoAll = !emoAll; drawEmo(); } }, emoAll ? 'свернуть' : `ещё ${more}`));
     };
     drawEmo();
 

@@ -124,6 +124,7 @@
     for (const id in d.emotions) {
       const e = H.EMOTIONS.find(x => x.id === id); if (!e) continue;
       const sc = Number(d.emotions[id].score) || 5;
+      if (e.v === 0) continue;
       (e.v > 0 ? pos : neg).push(sc);
     }
     return { pos, neg };
@@ -136,9 +137,10 @@
     const dom = {};
     const wavg = arr => { const v = arr.filter(x => x[0] != null && !isNaN(x[0])); if (!v.length) return null; const w = v.reduce((a, x) => a + x[1], 0); return v.reduce((a, x) => a + x[0] * x[1], 0) / w; };
     // mood: overall rating + balance of pleasant vs heavy emotions (heavy ones weigh a bit more)
-    let P = 0, N = 0;
-    for (const id in d.emotions || {}) { const e = H.EMOTIONS.find(x => x.id === id); if (!e) continue; const sc = Number(d.emotions[id].score) || 5; if (e.v > 0) P += sc; else N += sc; }
-    const emoBal = (P + N) ? H.clamp(5 + 5 * (P - 1.15 * N) / Math.max(P + N, 8), 0, 10) : null;
+    let P = 0, N = 0, Z = 0;
+    for (const id in d.emotions || {}) { const e = H.EMOTIONS.find(x => x.id === id); if (!e) continue; const sc = Number(d.emotions[id].score) || 5; if (e.v === 0) Z += sc; else if (e.v > 0) P += sc; else N += sc; }
+    // «нейтрально» sits a little above the middle: an even, okay day
+    const emoBal = (P + N + Z) ? H.clamp(5 + 5 * (P - 1.15 * N + .3 * Z) / Math.max(P + N + Z, 8), 0, 10) : null;
     dom.mood = wavg([[g.overall, 1], [emoBal, 1]]);
     // energy: energy rating, sleepiness, weakness, brain fog
     const sv = id => sy[id] ? Number(sy[id].score) : null;
@@ -167,14 +169,17 @@
     const W = { mood: 2, energy: 1.5, body: 1.2, sleep: 1.2, calm: 1, care: .5 };
     const present = Object.keys(W).filter(k => dom[k] != null);
     if (!present.some(k => k !== 'care')) return null;
+    // the index is the weighted average of the areas that ARE marked — leaving something out does not lower it
     const mean = present.reduce((a, k) => a + dom[k] * W[k], 0) / present.reduce((a, k) => a + W[k], 0);
+    let index = mean * 10;
+    // one clearly bad area (below 4/10) pulls the day down a little, up to −10
     const minD = Math.min(...present.map(k => dom[k]));
-    const index = Math.round((mean * .82 + minD * .18) * 10);
+    if (minD < 4 && present.length > 1) index -= (4 - minD) * 2.5;
+    // only one area known: a light step toward the middle, so a single tap does not decide the whole day
+    const areas = present.filter(k => k !== 'care').length;
+    if (areas === 1) index = 50 + (index - 50) * .85;
     const coverage = present.reduce((a, k) => a + W[k], 0) / Object.values(W).reduce((a, b) => a + b, 0);
-    // little data → less confident → pulled toward the middle
-    const conf = H.clamp(.45 + coverage * .75, .55, 1);
-    const adj = Math.round(50 + (index - 50) * conf);
-    return { index: H.clamp(adj, 0, 100), domains: dom, coverage, present };
+    return { index: H.clamp(Math.round(index), 0, 100), domains: dom, coverage, present, areas };
   }
   function wellbeing(d) { const x = wellbeingDetail(d); return x ? x.index : null; }
   // circumplex: where the day sits on pleasant↔unpleasant (v) and calm↔activated (a)
@@ -278,4 +283,27 @@
   }
 
   Object.assign(H, { metrics: { affect, baseline, wellbeingDetail, sleepMinutes, napMinutes, totalSleep, periodStarts, cycleStats, cycleLength, cycleInfo, isPredictedPeriod, forecast, activeMeds, adherence, emoSplit, wellbeing, filledBlocks, METRICS, metricValue, seriesFor, pearson } });
+})(window.H);
+
+/* «Как считается индекс» — plain-language breakdown of today's number */
+(function (H) {
+  const NAMES = { mood: ['Настроение', 'оценка самочувствия и баланс приятных / тяжёлых эмоций'], energy: ['Энергия', 'оценка энергии, сонливость, слабость, туман в голове'], body: ['Тело', 'отмеченные симптомы: сильнее всех весит самый выраженный'], sleep: ['Сон', 'длительность (лучше всего 7–9 ч), качество, как проснулась, пробуждения'], calm: ['Спокойствие', 'стресс и тревожные эмоции'], care: ['Забота', 'отмеченные таблетки'] };
+  const W = { mood: 2, energy: 1.5, body: 1.2, sleep: 1.2, calm: 1, care: .5 };
+  H.indexExplain = function (d) {
+    const { h, ui } = H;
+    const x = d ? H.metrics.wellbeingDetail(d) : null;
+    const rows = Object.keys(NAMES).map(k => {
+      const v = x && x.domains[k] != null ? Math.round(x.domains[k] * 10) : null;
+      return h('div.ix-row' + (v == null ? '.off' : ''), h('div.ix-main', h('b', NAMES[k][0]), h('span', NAMES[k][1])), h('div.ix-val', v == null ? 'не отмечено' : String(v)), h('div.ix-bar', h('i', { style: { width: (v || 0) + '%', background: v == null ? 'transparent' : H.wellColor(v) } })));
+    });
+    ui.modal('Как считается индекс', h('div.stack',
+      x ? h('p', { style: { margin: 0 } }, `Сегодня — ${x.index} из 100, по ${x.areas} ${H.plural(x.areas, 'сфере', 'сферам', 'сферам')}.`) : h('p.muted', { style: { margin: 0 } }, 'Пока нечего считать — отметь хотя бы самочувствие.'),
+      h('div.ix-list', rows),
+      h('div.ix-rules',
+        h('p', h('b', 'Считается только то, что ты отметила. '), 'Неотмеченные сферы не тянут индекс вниз: если отметила три пункта и все хорошие — индекс будет высоким. Каждая новая отметка его уточняет.'),
+        h('p', 'Индекс — это среднее по сферам с весами: настроение ×2, энергия ×1,5, тело и сон ×1,2, спокойствие ×1, таблетки ×0,5. 100 — всё отлично, 50 — ровно, ниже 30 — тяжёлый день.'),
+        h('p', 'Если какая-то сфера совсем плохая (ниже 40), день чуть снижается — максимум на 10, чтобы она не потерялась в среднем. Если отмечена всего одна сфера, индекс немного осторожнее.'),
+        h('p.faint', 'Это ориентир по твоим собственным отметкам, а не медицинская оценка. Лучше всего он работает, когда сравниваешь дни между собой.'))),
+      { actions: [h('button.btn.primary', { onclick: e => e.target.closest('.modal-back').querySelector('.modal-x').click() }, 'Понятно')] });
+  };
 })(window.H);

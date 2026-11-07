@@ -81,7 +81,9 @@ html.is-mobile .reset-btn { opacity: .7 !important; }
 /* calendar */
 html.is-mobile .cal-grid { gap: 4px; }
 html.is-mobile .cal-cell { min-height: 54px !important; border-radius: 14px !important; padding: 5px !important; }
-html.is-mobile .cal-cell .cd-idx, html.is-mobile .cal-cell .cd-photo { display: none; }
+html.is-mobile .cal-cell .cd-idx { display: none; }
+html.is-mobile .cal-cell .cd-photo { opacity: .5; border-radius: inherit; }
+html.is-mobile .cal-cell .cd-n { position: relative; z-index: 1; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
 html.is-mobile .cal-wrap { grid-template-columns: minmax(0, 1fr) !important; }
 html.is-mobile .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; }
 html.is-mobile .cal-cell { aspect-ratio: auto; }
@@ -234,9 +236,8 @@ html.is-mobile .jr-qgrid { grid-template-columns: minmax(0, 1fr) !important; }
 /* journal entries: calm, compact list header; no duplicated buttons */
 html.is-mobile .jr-side { max-height: none; padding: 14px; }
 html.is-mobile .jr-side > .row .btn { padding: 11px 16px; }
-html.is-mobile .jr-search { padding: 8px 16px !important; min-height: 0; background: rgba(var(--ov), .035); border-color: rgba(var(--ov), .07); font-size: 16px; }
+html.is-mobile .jr-sbox.open > .jr-search { padding: 7px 16px !important; background: rgba(var(--ov), .035); border-color: rgba(var(--ov), .07); font-size: 16px !important; }
 html.is-mobile .jr-welcome { display: none; }
-html.is-mobile .jr-paper .jr-paper-top .jr-date { display: none; }        /* date is already in the line above */
 html.is-mobile .jr-paper-top { justify-content: flex-end; }
 html.is-mobile .jr-meta { font-size: .8rem; }
 html.is-mobile .jr-item { min-width: 0; }
@@ -297,3 +298,35 @@ html.is-mobile input { text-overflow: ellipsis; }
   html.is-mobile .jd-q { font-size: 1.18rem; }
   html.is-mobile .home-date { font-size: 2rem !important; }
 }
+
+/* quick check-in: medicines like in the full form */
+.q-medrow { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid rgba(var(--ov), .07); }
+.q-medrow:last-child { border-bottom: 0; padding-bottom: 2px; }
+.q-medrow:first-child { padding-top: 2px; }
+.q-medrow .m-dot { width: 10px; height: 10px; border-radius: 50%; }
+.q-mname b { display: block; font-size: .98rem; } .q-mname small { font-size: .76rem; color: var(--text-3); }
+.q-mslots { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.q-mslots .slot { flex: 1 1 0; min-width: 96px; justify-content: center; }
+.q-meds { gap: 0; }
+.q-emo .q-more { border-style: dashed; color: var(--text-2); }
+
+/* showcase on the phone: static relics (no floating, no live shadows), fewer particles */
+html.is-mobile .niche-relic { animation: none !important; transform: none !important; filter: drop-shadow(0 8px 12px rgba(0,0,0,.5)) !important; }
+html.is-mobile .niche { transform-style: flat; transform: none !important; content-visibility: auto; contain-intrinsic-size: 230px; }
+html.is-mobile .niche-label { transform: none; }
+html.is-mobile .dust i:nth-child(n+9) { display: none; }
+html.is-mobile .niche.n-mythic .niche-label b { animation: none !important; }
+html.is-mobile .hall { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+html.is-mobile .niche { height: 210px; }
+html.is-mobile .niche-relic svg { width: 96px; height: 96px; }
+html.is-mobile .cal-tip { display: none !important; }
+html.is-mobile .spinner-card .segmented { flex-wrap: wrap; overflow: visible; }
+html.is-mobile .spinner-card .segmented .seg { flex: 1 1 auto; }
+
+html.is-mobile .jr-rich { min-height: calc(var(--app-h, 100vh) - var(--mnav-h) - var(--safe-b) - 300px); font-size: 16px; }
+html.is-mobile .jr-tools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+html.is-mobile .jr-tools::-webkit-scrollbar { display: none; }
+html.is-mobile .jd-topics { flex-wrap: nowrap; }
+/* the body silhouette is not shown on the phone, so its setting is hidden too */
+html.is-mobile .fsection:has(> .sil-grid) { display: none; }
+html.is-mobile .sil-section { display: none !important; }

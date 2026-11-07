@@ -580,6 +580,16 @@
   }
 
   // ---------- showcase ----------
+  // relic artwork is drawn only when its niche scrolls into view — the page opens instantly
+  let io = null;
+  function lazyRelic(it, size, locked) {
+    const box = h('div.niche-relic');
+    box._paint = () => { if (box._done) return; box._done = true; box.appendChild(relicSvg(it, size, locked)); };
+    if (!('IntersectionObserver' in window)) { box._paint(); return box; }
+    if (!io) io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { io.unobserve(e.target); e.target._paint && e.target._paint(); } }), { rootMargin: '300px 0px' });
+    requestAnimationFrame(() => io.observe(box));
+    return box;
+  }
   function showcase(host) {
     const g = H.store.get().game;
     const have = id => g.inventory.find(x => x.id === id);
@@ -592,7 +602,7 @@
       const r = H.game.RAR[it.r];
       const el = h('div.niche.n-' + it.r + (own ? '' : '.empty'), { style: { '--rc': r.color, animationDelay: (idx * 35) + 'ms' } },
         h('div.niche-arch'), h('div.niche-light'),
-        h('div.niche-relic', relicSvg(it, 118, !own)),
+        lazyRelic(it, 118, !own),
         h('div.niche-pedestal'),
         h('div.niche-label', h('b', own ? it.name : '???'), h('span', r.name + (own && own.count > 1 ? ` · ×${own.count}` : ''))));
       el.addEventListener('pointermove', e => {

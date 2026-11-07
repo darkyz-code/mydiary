@@ -124,7 +124,7 @@
         ui.ring(wb, 96, 'из 100'),
         h('div', h('div', { style: { fontWeight: 650 } }, 'Самочувствие'),
           h('div.muted', { style: { fontSize: '.82rem', marginTop: '4px' } }, `Заполнено ${filled} из ${total}`),
-          h('div.faint', { style: { fontSize: '.74rem', marginTop: '4px' } }, 'Индекс считается из оценок, эмоций, симптомов и сна'))));
+          h('button.idx-how', { onclick: () => H.indexExplain(R()) }, 'Как считается ›'))));
     }
 
     // ---------- symptom rows (shared by body map & physical block) ----------

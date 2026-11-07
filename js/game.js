@@ -58,6 +58,12 @@
     ['acc_emerald', 'Цвет «Изумрудный хром»', 'epic', '#5fd3b0'],
     ['acc_lavender', 'Цвет «Лавандовый туман»', 'rare', '#b9a6ff'],
     ['acc_bloodmoon', 'Цвет «Кровавая луна»', 'legendary', '#d4566e'],
+    ['acc_peach', 'Цвет «Персиковый закат»', 'rare', '#f2a585'],
+    ['acc_champagne', 'Цвет «Шампань»', 'rare', '#e6cf96'],
+    ['acc_ocean', 'Цвет «Глубокий океан»', 'epic', '#4f8fe0'],
+    ['acc_cherry', 'Цвет «Вишнёвый цвет»', 'epic', '#f08fb4'],
+    ['acc_aurora', 'Цвет «Северное сияние»', 'legendary', '#6fe3c1'],
+    ['acc_amethyst', 'Цвет «Звёздный аметист»', 'mythic', '#a678ff'],
   ];
   const COUPONS = [
     ['c_nothing', 'Купон: 20 минут ничегонеделания', 'common'],
@@ -80,8 +86,8 @@
   const CASES = [
     { id: 'daily', name: 'Ежедневный кейс', price: 0, desc: 'Бесплатно раз в день, когда заполнено хотя бы 3 раздела дня.', pool: ['gem', 'crystals', 'coupon'], boost: 0, color: '#9fe6ff' },
     { id: 'care', name: 'Кейс заботы', price: 40, desc: 'Только забота о себе: купоны на приятные, тёплые и немного особенные дела.', pool: ['coupon'], boost: 0, color: '#ffc7dc' },
-    { id: 'crystal', name: 'Кристальный кейс', price: 60, desc: 'Реликвии для витрины и новые цвета оформления.', pool: ['gem', 'accent', 'crystals'], weights: { gem: 7, accent: 2, crystals: 1 }, boost: 0, color: '#d9e2f2' },
-    { id: 'gothic', name: 'Лунный кейс', price: 150, desc: 'Премиальный: только редкие и выше. Эпические, легендарные и мифические реликвии выпадают в разы чаще.', pool: ['gem', 'accent'], weights: { gem: 8, accent: 2 }, boost: 2, minR: 'rare', color: '#b9a6ff' },
+    { id: 'crystal', name: 'Кристальный кейс', price: 60, desc: 'Реликвии для витрины и новые цвета оформления.', pool: ['gem', 'accent', 'crystals'], weights: { gem: 6, accent: 4, crystals: 1 }, boost: 0, color: '#d9e2f2' },
+    { id: 'gothic', name: 'Лунный кейс', price: 150, desc: 'Премиальный: только редкие и выше. Эпические, легендарные и мифические реликвии выпадают в разы чаще.', pool: ['gem', 'accent'], weights: { gem: 7, accent: 4 }, boost: 2, minR: 'rare', color: '#b9a6ff' },
   ];
 
   const G = () => H.store.get().game;

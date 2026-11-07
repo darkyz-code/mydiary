@@ -71,6 +71,11 @@
   const cap = t => h('div.faint', { style: { fontSize: '.72rem', letterSpacing: '.14em', textTransform: 'uppercase' } }, t);
 
   // ---------- ideas ----------
+  // big round «spin» button under the reel
+  function spinBtn(spin) {
+    const b = h('button.spin-btn', { onclick: () => { b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); spin(); } }, h('span.sb-ring'), h('span.sb-face', H.icon('dice', 22), h('b', 'Крутить')));
+    return h('div.spin-btn-row', b);
+  }
   function ideasView(host) {
     const G = () => { const g = H.store.get().game; g.ideaPlans = g.ideaPlans || []; return g; };
     let energy = 1, spinning = false, token = 0;
@@ -113,9 +118,9 @@
     host.appendChild(h('div.glass.card.spinner-card',
       h('div.card-title', H.gicon('dice', 17, 'sm'), h('h3', 'Чем заняться'), h('span.badge', { style: { marginLeft: 'auto' } }, 'бесплатно')),
       h('p.muted', { style: { fontSize: '.88rem' } }, 'Когда не знаешь, за что взяться, — пусть решит крутка. Выбери, сколько сейчас сил.'),
-      h('div.row.wrapr', { style: { gap: '12px', margin: '6px 0 18px' } }, ui.segmented([{ id: 1, name: 'Почти нет сил' }, { id: 2, name: 'Немного есть' }, { id: 3, name: 'Есть энергия' }].map(x => ({ ...x, toggleOff: false })), energy, v => { energy = v; reset(); }),
-        h('button.btn.primary', { onclick: spin }, H.icon('dice', 16), 'Крутить')),
-      stage, result, plansHost,
+      h('div.row.wrapr', { style: { gap: '12px', margin: '6px 0 22px' } }, ui.segmented([{ id: 1, name: 'Почти нет сил' }, { id: 2, name: 'Немного есть' }, { id: 3, name: 'Есть энергия' }].map(x => ({ ...x, toggleOff: false })), energy, v => { energy = v; reset(); }),
+      ),
+      stage, spinBtn(spin), result, plansHost,
       h('p.faint', { style: { fontSize: '.76rem', margin: '14px 0 0' } }, `В крутке ${IDEAS.length} идей. «Сделаю» — добавить в планы, «Сделала» — +10 кристаллов один раз в день.`)));
   }
 
@@ -177,8 +182,8 @@
       h('p.muted', { style: { fontSize: '.88rem' } }, 'Выбери категорию и крути сколько угодно. Что внутри — не видно, пока не выпадет. Выпавшие блюда собираются в твою книгу рецептов.'),
       h('div.row.wrapr', { style: { gap: '12px', margin: '6px 0 18px' } },
         ui.segmented(H.FOOD.CATS.map(c => ({ id: c.id, name: c.name, toggleOff: false })).concat([{ id: 'any', name: 'Любое', toggleOff: false }]), cat, v => { cat = v; reset(); }),
-        h('button.btn.primary', { onclick: spin }, H.icon('dice', 16), 'Крутить')),
-      stage, result, book));
+      ),
+      stage, spinBtn(spin), result, book));
   }
 
   H.spinners = { ideasView, foodView, recipeModal, IDEAS };

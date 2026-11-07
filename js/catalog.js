@@ -2,6 +2,7 @@
 (function (H) {
   const EMOTIONS = [
     { id: 'joy', name: 'Радость', e: '😊', v: 1, g: 'pos' },
+    { id: 'neutral', name: 'Нейтрально', e: '😐', v: 0, g: 'pos' },
     { id: 'calm', name: 'Спокойствие', e: '😌', v: 1, g: 'pos' },
     { id: 'inspired', name: 'Воодушевление', e: '🤩', v: 1, g: 'pos', rare: true },
     { id: 'tender', name: 'Нежность', e: '🥰', v: 1, g: 'pos', rare: true },
@@ -38,7 +39,7 @@
   ];
 
   const EMO_GROUPS = [
-    { id: 'pos', name: 'Приятные' },
+    { id: 'pos', name: 'Приятные и ровные' },
     { id: 'low', name: 'Грусть и упадок сил' },
     { id: 'tense', name: 'Тревога и напряжение' },
   ];
@@ -240,6 +241,7 @@
 /* v1.7: emotion model — circumplex coordinates (valence, arousal in -1..1), own colour and a poetic colour name */
 (function (H) {
   H.EMO_MODEL = {
+    neutral: [0, -.1, '#b9bec9', 'Серебристый туман', 'тумана'],
     joy: [.8, .5, '#ffd36e', 'Солнечный янтарь', 'янтаря'], calm: [.55, -.6, '#9fe6d0', 'Морская бирюза', 'бирюзы'],
     inspired: [.8, .75, '#ff9fd2', 'Розовый рассвет', 'рассвета'], tender: [.7, -.25, '#ffc2d6', 'Пудровый шёлк', 'пудры'],
     interest: [.55, .45, '#ffb36b', 'Мандариновый свет', 'мандарина'], grateful: [.7, -.1, '#f7d9a0', 'Тёплый мёд', 'мёда'],

@@ -205,7 +205,12 @@
                 archive.slice(0, 40).map(c => h('div.arch-item', h('span', (H.game.ITEMS[c.id] || {}).name || 'Купон'), h('span.faint', c.state === 'used' ? 'использован ' + H.fmtShort(H.iso(new Date(c.usedAt))) : c.state === 'expired' ? 'сгорел' : 'убран'))),
                 h('button.btn.small.ghost', { style: { marginTop: '8px' }, onclick: async () => { if (await ui.confirm('Очистить архив купонов?', 'Очистить', true)) { g.coupons = g.coupons.filter(c => c.state === 'active'); H.store.save(); render(); } } }, 'Очистить архив')) : null),
             h('div.glass.card', h('div.card-title', H.gicon('sparkle', 17, 'sm'), h('h3', 'Цвета оформления')),
-              accents.length ? h('div.swatches', accents.map(x => { const it = H.game.ITEMS[x.id]; return h('button.swatch', { title: it.name, style: { background: it.color }, onclick: () => { S().settings.accent = it.color; H.applySettings(); H.store.save(); ui.toast('Цвет применён'); } }); })) : h('p.muted', 'Новые цвета выпадают из кристального и лунного кейсов.'))));
+              h('p.muted', { style: { fontSize: '.84rem', margin: '0 0 12px' } }, `Собрано ${accents.length} из ${Object.values(H.game.ITEMS).filter(x => x.type === 'accent').length}. Выпадают из Кристального и Лунного кейсов (в лунном — чаще). Нажми на свой цвет, чтобы применить.`),
+              h('div.acc-list', Object.values(H.game.ITEMS).filter(x => x.type === 'accent').sort((a, b) => H.game.ORDER.indexOf(a.r) - H.game.ORDER.indexOf(b.r)).map(it => {
+                const own = accents.some(x => x.id === it.id); const rr = H.game.RAR[it.r];
+                return h('button.acc-it' + (own ? '' : '.locked') + (S().settings.accent === it.color ? '.on' : ''), { disabled: !own || null, onclick: () => { S().settings.accent = it.color; H.applySettings(); H.store.save(); ui.toast('Цвет применён'); render(); } },
+                  h('span.acc-sw', { style: { background: own ? it.color : 'transparent', '--c': it.color } }, own ? null : '?'), h('span.acc-t', h('b', own ? it.name.replace(/^Цвет «(.+)»$/, '$1') : '???'), h('small', { style: { color: rr.color } }, rr.name)));
+              })))));
       }
       if (tab === 'ideas') H.spinners.ideasView(host);
       if (tab === 'food') H.spinners.foodView(host);
