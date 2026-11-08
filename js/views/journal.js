@@ -210,7 +210,7 @@
     let cur = params && params.id ? params.id : null;
     const host = h('div.jr-body');
     const nav = h('div.jr-nav');
-    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма в будущее'], ['joy', 'star', 'Банка радостей'], ['vent', 'wind', 'Выговориться']];
+    const NAV = [['home', 'home', 'Главная'], ['entries', 'feather', 'Записи'], ['dreams', 'moon', 'Сны'], ['prompts', 'compass', 'Вопросы'], ['about', 'mind', 'О себе'], ['letters', 'clock', 'Письма в будущее'], ['joy', 'star', 'Банка радостей'], ['vent', 'wind', 'Выговориться']];
     const go = (sec, extra) => { section = sec; if (extra && 'id' in extra) cur = extra.id; render(); };
     let drawNav = () => { H.clear(nav); NAV.forEach(([id, ic, name]) => nav.appendChild(h('button.jr-nav-it' + (section === id ? '.on' : ''), { onclick: () => go(id) }, H.icon(ic, 16), h('span', name)))); };
 
@@ -227,6 +227,110 @@
       J.unshift(e); H.store.save(); cur = e.id; section = 'entries'; render(true);
     }
 
+    // ---------- DREAMS (read from the days, nothing is duplicated) ----------
+    function dreams() {
+      const TYPES = H.DREAMS.filter(x => x.id !== 'none');
+      const tName = id => (H.DREAMS.find(x => x.id === id) || {}).name || id;
+      const hasDream = d => d && d.sleep && (((d.sleep.dreamText || '').trim()) || (d.sleep.dreams || []).some(x => x !== 'none'));
+      const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().map(k => H.store.get().days[k]).filter(hasDream);
+      let filt = 'all', q = '';
+      const wrap = h('div.dr-wrap');
+      const feed = h('div.dr-feed'), statsHost = h('div'), chips = h('div.dr-chips');
+      const sBox = h('div.jr-sbox.dr-sbox');
+      const sInp = h('input.inp.jr-search', { placeholder: 'Найти в снах…', oninput: e => { q = e.target.value.trim().toLowerCase(); draw(); } });
+      sBox.append(sInp);
+      const sBtn = h('button.icon-btn.small', { title: 'Поиск', onclick: () => { const o = sBox.classList.toggle('open'); if (o) setTimeout(() => sInp.focus(), 60); else if (q) { sInp.value = ''; q = ''; draw(); } } }, H.icon('search', 16));
+
+      function editor(date) {
+        const d0 = H.store.day(date) || {}; const s0 = d0.sleep || {};
+        const sel = new Set((s0.dreams || []).filter(x => x !== 'none'));
+        const row = h('div.chips', TYPES.map(t => ui.chip(t.name, sel.has(t.id), (e, c) => { if (sel.has(t.id)) sel.delete(t.id); else sel.add(t.id); c.classList.toggle('on', sel.has(t.id)); })));
+        const ta = h('textarea.ta.dr-ta', { rows: 6, placeholder: 'Что снилось? Образы, люди, места, ощущения после пробуждения…' }); ta.value = s0.dreamText || '';
+        const save = () => {
+          const d = H.store.day(date, true); d.sleep = d.sleep || {};
+          const txt = ta.value.replace(/\s+$/, '');
+          if (sel.size) d.sleep.dreams = [...sel]; else delete d.sleep.dreams;
+          if (txt.trim()) d.sleep.dreamText = txt; else delete d.sleep.dreamText;
+          H.store.touch(date, 'sleep'); H.game && H.game.onDayEdit && H.game.onDayEdit(date, 'sleep');
+          md.close(); draw(); ui.toast && ui.toast('Сон сохранён');
+        };
+        const md = ui.modal(date === H.today() ? 'Сон за эту ночь' : 'Сон · ночь на ' + H.fmtLong(date),
+          h('div.stack', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), row, ta,
+            h('div.muted', { style: { fontSize: '.8rem' } }, 'Сохранится в день ' + H.fmtLongY(date) + ' — в блок «Сон».')),
+          { actions: [h('button.btn.primary', { onclick: save }, 'Сохранить')] });
+        setTimeout(() => ta.focus(), 120);
+      }
+
+      function stats(all) {
+        H.clear(statsHost);
+        const from = H.addDays(H.today(), -29);
+        const last = all.filter(d => d.date >= from);
+        if (!all.length) return;
+        const cnt = {}; last.forEach(d => (d.sleep.dreams || []).forEach(t => { if (t !== 'none') cnt[t] = (cnt[t] || 0) + 1; }));
+        const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]);
+        const heavy = last.filter(d => (d.sleep.dreams || []).some(t => t === 'anxious' || t === 'nightmare'));
+        const mins = arr => { const v = arr.map(d => H.metrics.sleepMinutes(d)).filter(x => x != null && x > 0); return v.length >= 2 ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+        const heavyAll = all.filter(d => (d.sleep.dreams || []).some(t => t === 'anxious' || t === 'nightmare'));
+        const calmAll = Object.values(H.store.get().days || {}).filter(d => d.sleep && !(d.sleep.dreams || []).some(t => t === 'anxious' || t === 'nightmare'));
+        const mh = mins(heavyAll), mc = mins(calmAll);
+        const tile = (v, l) => h('div.dr-stat', h('b', v), h('span', l));
+        statsHost.append(h('div.glass.card.dr-stats',
+          h('div.dr-stats-t', 'За последние 30 дней'),
+          h('div.dr-stat-row',
+            tile(String(last.length), H.plural(last.length, 'ночь со сном', 'ночи со снами', 'ночей со снами')),
+            tile(top.length ? tName(top[0][0]) : '—', 'чаще всего'),
+            tile(String(heavy.length), 'тревожных и кошмаров')),
+          top.length > 1 ? h('div.dr-bars', top.slice(0, 5).map(([id, n]) => h('div.dr-bar', h('span', tName(id)), h('i', h('em', { style: { width: Math.round(n / top[0][1] * 100) + '%' } })), h('b', String(n))))) : null,
+          mh != null && mc != null ? h('div.dr-note', `В ночи с тревожными снами или кошмарами ты спишь в среднем ${H.fmtDur(Math.round(mh))}, в остальные — ${H.fmtDur(Math.round(mc))}.`) : null));
+      }
+
+      function card(d) {
+        const s = d.sleep, types = (s.dreams || []).filter(x => x !== 'none'), txt = (s.dreamText || '').trim();
+        const mins = H.metrics.sleepMinutes(d);
+        const body = txt ? h('div.dr-text', txt) : h('div.dr-text.muted', 'без описания');
+        if (txt.length > 260) { body.classList.add('clamp'); body.onclick = () => body.classList.toggle('clamp'); }
+        return h('div.glass.dr-card',
+          h('div.dr-head',
+            h('div', h('div.dr-date', 'Ночь на ' + H.fmtLong(d.date)), h('div.dr-sub', H.cap(H.weekday(d.date)) + (mins ? ' · сон ' + H.fmtDur(mins) : '') + (s.quality != null ? ' · качество ' + s.quality + '/10' : ''))),
+            h('div', { style: { flex: 1 } }),
+            h('button.icon-btn.small', { title: 'Изменить', onclick: () => editor(d.date) }, H.icon('feather', 15))),
+          types.length ? h('div.dr-tags', types.map(t => h('span.dr-tag.t-' + t, tName(t)))) : null,
+          body,
+          h('button.dr-open', { onclick: () => H.go('day', { date: d.date }) }, 'открыть день ›'));
+      }
+
+      function draw() {
+        const all = collect();
+        stats(all);
+        H.clear(chips);
+        const present = new Set(all.flatMap(d => d.sleep.dreams || []));
+        chips.append(h('button.jr-fchip' + (filt === 'all' ? '.on' : ''), { onclick: () => { filt = 'all'; draw(); } }, 'Все'));
+        TYPES.filter(t => present.has(t.id)).forEach(t => chips.append(h('button.jr-fchip' + (filt === t.id ? '.on' : ''), { onclick: () => { filt = filt === t.id ? 'all' : t.id; draw(); } }, t.name)));
+        chips.append(h('div', { style: { flex: 1 } }), sBtn);
+        const items = all.filter(d => filt === 'all' || (d.sleep.dreams || []).includes(filt)).filter(d => !q || ((d.sleep.dreamText || '') + ' ' + (d.sleep.dreams || []).map(tName).join(' ')).toLowerCase().includes(q));
+        H.clear(feed);
+        if (!all.length) feed.append(h('div.glass.card.jr-empty', h('div', { style: { fontSize: '2rem' } }, '🌙'), h('b', 'Здесь будут твои сны'), h('p.muted', 'Записывай сон утром — кнопкой выше или в дне, в блоке «Сон». Все сны соберутся здесь лентой.')));
+        else if (!items.length) feed.append(h('div.muted', { style: { textAlign: 'center', padding: '24px 0' } }, 'Ничего не нашлось'));
+        else {
+          let month = '';
+          items.forEach(d => {
+            const m = H.cap(new Date(d.date + 'T12:00').toLocaleString('ru', { month: 'long', year: 'numeric' }));
+            if (m !== month) { month = m; feed.append(h('div.dr-month', m)); }
+            feed.append(card(d));
+          });
+        }
+      }
+
+      const todayHas = hasDream(H.store.day(H.today()));
+      wrap.append(
+        h('div.dr-top',
+          h('div', h('div.jr-kicker', 'Сны'), h('div.dr-h', 'Дневник снов'), h('div.muted', { style: { fontSize: '.86rem' } }, 'Все сны из твоих дней — в одном месте.')),
+          h('button.btn.primary', { onclick: () => editor(H.today()) }, H.icon('moon', 15), todayHas ? 'Сон за эту ночь ✓' : '+ Сон за эту ночь')),
+        statsHost, chips, sBox, feed);
+      draw();
+      return wrap;
+    }
+
     // ---------- HOME ----------
     function home() {
       const { J, X } = ST();
@@ -241,8 +345,7 @@
           h('div.jr-ink'),
           h('div', h('div.jr-kicker', 'Вопрос дня'), h('div.jr-dq', dq),
             h('div.row', { style: { gap: '8px', marginTop: '14px' } },
-              answeredToday ? h('button.btn', { onclick: () => { cur = answeredToday.id; go('entries'); } }, 'Открыть ответ') : h('button.btn.primary', { onclick: () => newEntry(dq) }, H.icon('feather', 15), 'Ответить'),
-              h('button.btn.ghost', { onclick: () => newEntry() }, 'Просто написать')))),
+              answeredToday ? h('button.btn', { onclick: () => { cur = answeredToday.id; go('entries'); } }, 'Открыть ответ') : h('button.btn.primary', { onclick: () => newEntry(dq) }, H.icon('feather', 15), 'Ответить')))),
         h('div.jr-tiles',
           tile('prompts', 'compass', 'Вопросы', `${allPrompts().length} вопросов в ${D().prompts.length} темах`),
           tile('about', 'mind', 'О себе', `${aboutDone} из ${aboutTotal} — твой портрет`, h('div.jt-prog', h('i', { style: { width: (aboutTotal ? aboutDone / aboutTotal * 100 : 0) + '%' } }))),
@@ -258,11 +361,62 @@
       const { J } = ST();
       let q = '';
       const listHost = h('div.jr-list'), pageHost = h('div.jr-page-host');
+      let gridEl = null;
+      // folders: «Личные» and «Ответы на вопросы» are automatic, own folders can be added
+      const folderBar = h('div.jr-folders');
+      const FX = () => { const x = ST().X; x.folders = x.folders || []; return x.folders; };
+      function drawFolders() {
+        H.clear(folderBar);
+        const fl = st.journalFolder || 'all';
+        const chip = (id, name, extra) => h('button.jr-fchip' + (fl === id ? '.on' : ''), { onclick: () => { if (fl === id && extra) return extra(); st.journalFolder = id; H.store.save(); drawList(); } }, name, fl === id && extra ? h('span.jr-fedit', '✎') : null);
+        folderBar.append(chip('all', 'Все'), chip('personal', 'Личные'), chip('answers', 'Ответы на вопросы'));
+        FX().forEach(f => folderBar.append(chip(f.id, f.name, () => editFolder(f))));
+        folderBar.append(h('button.jr-fchip.add', { title: 'Новая папка', onclick: () => newFolder() }, '+'));
+      }
+      function askName(title, val) {
+        return new Promise(res => {
+          const inp = h('input.inp', { value: val || '', placeholder: 'Например: Работа, Сны, Терапия' });
+          const md = ui.modal(title, h('div.stack', inp), { onClose: () => res(null), actions: [h('button.btn.primary', { onclick: () => { const v = inp.value.trim(); if (!v) return; res(v); md.close(); } }, 'Готово')] });
+          setTimeout(() => inp.focus(), 80);
+          inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') { const v = inp.value.trim(); if (v) { res(v); md.close(); } } });
+        });
+      }
+      async function newFolder(forEntry) {
+        const name = await askName('Новая папка'); if (!name) return null;
+        const f = { id: 'f_' + H.uid(), name: name.slice(0, 40) }; FX().push(f);
+        if (forEntry) forEntry.folder = f.id; else st.journalFolder = f.id;
+        H.store.save(); drawList(); return f;
+      }
+      async function editFolder(f) {
+        const md = ui.modal('Папка «' + f.name + '»', h('div.stack',
+          h('button.btn', { onclick: async () => { md.close(); const n = await askName('Переименовать папку', f.name); if (n) { f.name = n.slice(0, 40); H.store.save(); render(); } } }, 'Переименовать'),
+          h('button.btn.ghost', { style: { color: '#e5484d' }, onclick: async () => { md.close(); if (!await ui.confirm(`Удалить папку «${f.name}»? Записи из неё не удалятся — вернутся в «Личные» или «Ответы».`, 'Удалить папку', true)) return; const s2 = ST(); s2.X.folders = FX().filter(x => x.id !== f.id); s2.J.forEach(e => { if (e.folder === f.id) delete e.folder; }); st.journalFolder = 'all'; H.store.save(); render(); } }, 'Удалить папку')));
+      }
+      // small «папка» control in the editor
+      function folderPick(e) {
+        const name = () => { const f = FX().find(x => x.id === e.folder); return f ? f.name : (e.prompt ? 'Ответы на вопросы' : 'Личные'); };
+        let pop = null;
+        const done = () => { e.updated = Date.now(); H.store.save(); upd(); drawList(); pop && pop.close(); };
+        const btn = h('button.jr-fpick', { title: 'Папка', onclick: () => {
+          const list = h('div.jr-fmenu',
+            h('div.jr-fmenu-t', 'Папка записи'),
+            h('button' + (!e.folder ? '.on' : ''), { onclick: () => { delete e.folder; done(); } }, e.prompt ? 'Ответы на вопросы' : 'Личные'),
+            FX().map(f => h('button' + (e.folder === f.id ? '.on' : ''), { onclick: () => { e.folder = f.id; done(); } }, f.name)),
+            h('button.add', { onclick: async () => { pop && pop.close(); await newFolder(e); upd(); } }, '+ Новая папка'));
+          pop = ui.popover(btn.getBoundingClientRect(), list);
+        } }, H.icon('list', 13), h('span'));
+        const upd = () => { btn.querySelector('span').textContent = name(); };
+        upd();
+        return btn;
+      }
       const drawList = () => {
         H.clear(listHost);
         const all = J.slice().sort((a, b) => b.created - a.created);
         const ql = q.toLowerCase();
-        const items = ql ? all.filter(e => (e.title + ' ' + e.text + ' ' + (e.prompt || '')).toLowerCase().includes(ql)) : all;
+        const fl = st.journalFolder || 'all';
+        const inFolder = e => fl === 'all' ? true : fl === 'personal' ? !e.prompt && !e.folder : fl === 'answers' ? !!e.prompt && !e.folder : e.folder === fl;
+        drawFolders();
+        const items = all.filter(inFolder).filter(e => !ql || (e.title + ' ' + e.text + ' ' + (e.prompt || '')).toLowerCase().includes(ql));
         if (!all.length) { listHost.appendChild(h('div.jr-empty', 'Здесь будут твои записи. Их видишь только ты.')); return; }
         if (!items.length) { listHost.appendChild(h('div.jr-empty', 'Ничего не найдено')); return; }
         let lastDay = '';
@@ -282,7 +436,7 @@
         const e = J.find(x => x.id === cur);
         if (!e) {
           pageHost.appendChild(h('div.jr-welcome', h('div.jr-ink'), h('h2', 'Выбери запись или начни новую'),
-            h('div.row', { style: { justifyContent: 'center', gap: '8px' } }, h('button.btn.primary', { onclick: () => newEntry() }, H.icon('feather', 16), 'Новая запись'), h('button.btn', { onclick: () => go('prompts') }, 'Выбрать вопрос'))));
+            h('div.row', { style: { justifyContent: 'center', gap: '8px' } }, h('button.btn.primary', { onclick: () => newEntry() }, H.icon('feather', 16), 'Новая запись'))));
           return;
         }
         const meta = h('span.jr-meta');
@@ -323,17 +477,17 @@
         const others = e.prompt ? J.filter(x => x.prompt === e.prompt && x.id !== e.id && (x.text || '').trim()).sort((a, b) => b.created - a.created) : [];
         const past = others.length ? h('details.jr-past', h('summary', `Прошлые ответы на этот вопрос · ${others.length}`), others.map(o => h('button.jr-past-it', { onclick: () => { cur = o.id; sweep(o.id); render(); } }, h('span.faint', H.fmtLongY(H.iso(new Date(o.created)))), h('span', preview(o.text))))) : null;
         const moods = h('div.jr-moods', h('span.faint', 'Погода внутри:'), MOODS.map(m => h('button.jr-mood' + (e.mood === m.id ? '.on' : ''), { title: m.name, style: { '--mc': m.c }, onclick: ev => { e.mood = e.mood === m.id ? null : m.id; ev.currentTarget.parentNode.querySelectorAll('.jr-mood').forEach((b, i) => b.classList.toggle('on', MOODS[i].id === e.mood)); save(); } }, h('i'), h('span', m.name))));
-        const paper = h('div.jr-paper', h('div.jr-paper-top', tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, moods, ed);
+        const paper = h('div.jr-paper', h('div.jr-paper-top', moods, tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, ed);
         const del = h('button.icon-btn.small.jr-del', { title: 'Удалить запись', onclick: async () => {
           if (!await ui.confirm('Удалить эту запись? Её нельзя будет вернуть.', 'Удалить', true)) return;
           const s2 = H.store.get(); s2.journal = s2.journal.filter(x => x.id !== e.id); H.store.save(); cur = null; ui.toast('Запись удалена'); render();
         } }, H.icon('trash', 15));
-        const bar = h('div.jr-bar', meta, h('div', { style: { flex: 1 } }), del,
-          h('button.btn.small', { onclick: () => go('prompts') }, H.icon('compass', 15), 'Вопросы'),
-          h('button.btn.small', { onclick: () => newEntry() }, H.icon('feather', 15), 'Новая'));
+        const bar = h('div.jr-bar', meta, folderPick(e), h('div', { style: { flex: 1 } }), del,
+          h('button.btn.small.jr-newbtn', { onclick: () => newEntry() }, H.icon('feather', 15), 'Новая'),
+          h('button.icon-btn.small.jr-histbtn', { title: 'Показать историю записей', onclick: () => { st.journalSideHidden = false; H.store.save(); gridEl && gridEl.classList.remove('side-hidden'); } }, H.icon('list', 15)));
         if (M) {   // phone: only the page — a back arrow and a quiet line of meta
           const back = h('button.jr-back', { onclick: () => { cur = null; sweep(null); render(); } }, H.icon('chevron', 18), h('span', 'Записи'));
-          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), del), paper, h('div.jr-wmeta', meta));
+          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), folderPick(e), del), paper, h('div.jr-wmeta', meta));
         } else pageHost.append(bar, paper);
         updMeta();
         requestAnimationFrame(() => { if (fc) { ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } });
@@ -347,11 +501,13 @@
         h('div.row', { style: { gap: '8px', marginBottom: '10px' } },
           h('button.btn.primary.small', { style: { flex: 1 }, onclick: () => newEntry() }, H.icon('feather', 15), 'Новая запись'),
           sBtn,
+          M ? null : h('button.icon-btn.small.jr-collapse', { title: 'Свернуть историю', onclick: () => { st.journalSideHidden = true; H.store.save(); gridEl && gridEl.classList.add('side-hidden'); } }, H.icon('chevron', 15)),
           h('button.icon-btn.small' + (st.journalBlur ? '.on' : ''), { title: 'Скрывать текст в списке (видно при наведении)', onclick: ev => { st.journalBlur = !st.journalBlur; ev.currentTarget.classList.toggle('on', st.journalBlur); H.store.save(); drawList(); } }, H.icon('eye', 15))),
-        sBox, listHost);
+        sBox, folderBar, listHost);
       drawList(); if (!M || cur) drawPage(focus);
       if (M) return cur && J.find(x => x.id === cur) ? h('div.jr-writer', pageHost) : side;
-      return h('div.jr-grid', side, h('div.jr-main', pageHost));
+      gridEl = h('div.jr-grid' + (st.journalSideHidden ? '.side-hidden' : ''), h('div.jr-main', pageHost), side);
+      return gridEl;
     }
 
     // ---------- PROMPTS library ----------
@@ -620,7 +776,7 @@
       sweep(section === 'entries' ? cur : null);
       drawNav(); H.clear(host);
       if (wrapEl) wrapEl.classList.toggle('jr-writing', M && section === 'entries' && !!cur && !!ST().J.find(x => x.id === cur));
-      const sec = { home, entries, prompts, about, letters, joy, vent }[section] || home;
+      const sec = { home, entries, dreams, prompts, about, letters, joy, vent }[section] || home;
       const el = sec(focus);
       el.classList && el.classList.add('jr-enter');
       host.appendChild(el);

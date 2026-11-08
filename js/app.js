@@ -11,7 +11,7 @@
     { id: 'tests', ico: 'clipboard', name: 'Тесты' },
     { id: 'journal', ico: 'feather', name: 'Личные заметки' },
     { id: 'library', ico: 'book', name: 'Полезно знать' },
-    { id: 'games', ico: 'gem', name: 'Мини-игры' },
+    { id: 'games', ico: 'gem', name: 'Отдых' },
     { id: 'export', ico: 'file', name: 'Выгрузка в PDF' },
     'sep',
     { id: 'settings', ico: 'settings', name: 'Настройки' },

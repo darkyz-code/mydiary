@@ -32,7 +32,7 @@
     { id: 'profile', ico: 'card', name: 'Карточка здоровья' },
     { id: 'tests', ico: 'clipboard', name: 'Тесты' },
     { id: 'library', ico: 'book', name: 'Полезно знать' },
-    { id: 'games', ico: 'gem', name: 'Мини-игры' },
+    { id: 'games', ico: 'gem', name: 'Отдых' },
     { id: 'export', ico: 'file', name: 'Выгрузка в PDF' },
     { id: 'settings', ico: 'settings', name: 'Настройки и перенос данных' },
   ];

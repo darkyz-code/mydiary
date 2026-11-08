@@ -3,14 +3,14 @@
   // Left half of the outline (viewer's left), from the neck down around the arm and leg to the crotch.
   const LEFT = [
     [112, 58], [111.5, 72], [110, 82], [103, 87], [92, 90], [82, 93], [75, 99], [71.5, 109],
-    [70, 124], [68.5, 146], [66.5, 166], [64.5, 184], [62, 204], [59.5, 224], [57.5, 242], [56, 255],
-    [53.5, 266], [52.5, 279], [54, 291], [58, 297], [62, 293], [63.5, 282], [64.5, 268], [66, 256],
-    [69, 238], [72, 218], [75, 198], [77.5, 180], [79.5, 158], [81, 138], [82.5, 122],
-    [83.5, 134], [86, 152], [90.5, 170], [93, 184], [91.5, 200], [86, 216], [80.5, 232], [79, 248],
-    [80.5, 270], [84, 300], [88, 332], [91, 362], [92.5, 386], [91, 408], [91, 432], [94, 462],
-    [97.5, 490], [99.5, 506], [98.5, 520], [100.5, 531], [106, 535], [110.5, 531], [111.5, 518],
-    [111.5, 504], [113.5, 478], [114.5, 448], [113.5, 418], [113, 392], [114.5, 360], [116, 322],
-    [117.5, 288], [118.5, 270], [120, 262],
+    [70, 121.9], [68.5, 140.8], [66.5, 158], [64.5, 173.5], [62, 190.7], [59.5, 207.9], [57.5, 223.4], [56, 234.6],
+    [53.5, 244], [52.5, 255.2], [54, 265.5], [58, 270.7], [62, 267.2], [63.5, 257.8], [64.5, 245.7], [66, 235.4],
+    [69, 219.9], [72, 202.7], [75, 185.5], [77.5, 170.1], [79.5, 151.1], [81, 133.9], [82.5, 122], [83.5, 134],
+    [86, 152], [90.5, 170], [93, 184], [91.5, 200], [86, 216], [80.5, 232], [79, 248], [80.5, 270],
+    [84, 300], [88, 332], [91, 362], [92.5, 386], [91, 408], [91, 432], [94, 462], [97.5, 490],
+    [98, 503], [95.5, 520], [95, 538], [98.5, 551], [105, 556], [111, 551], [112.5, 535], [112, 518],
+    [111.5, 504], [113.5, 478], [114.5, 448], [113.5, 418], [113, 392], [114.5, 360], [116, 322], [117.5, 288],
+    [118.5, 270], [120, 262],
   ];
   const W = 240;
   function outlinePoints() {
@@ -38,17 +38,19 @@
     { z: 'chest', shapes: [[120, 122, 34, 26]] },
     { z: 'stomach', shapes: [[120, 186, 26, 20]] },
     { z: 'pelvis', shapes: [[120, 236, 38, 20]] },
-    { z: 'hands', shapes: [[64, 200, 13, 100], [176, 200, 13, 100]] },
-    { z: 'legs', shapes: [[103, 400, 15, 132], [137, 400, 15, 132]] },
+    { z: 'hands', shapes: [[66, 188, 13, 88], [174, 188, 13, 88]] },
+    { z: 'legs', shapes: [[103, 408, 15, 146], [137, 408, 15, 146]] },
   ];
   const HEAD = 'cx="120" cy="38" rx="21.5" ry="28"';
   // fine contour lines that give the figure definition (collarbones, bust, waist, knees)
-  const DETAIL = 'M104,92 Q112,96 118,94 M136,92 Q128,96 122,94 M97,132 Q106,144 117,138 M143,132 Q134,144 123,138 M119,206 q1,2 2,0 M103,382 q4,4 8,0 M137,382 q-4,4 -8,0';
+  const DETAIL = 'M104,92 Q112,96 118,94 M136,92 Q128,96 122,94 M90,129 Q100,147 114,140 M150,129 Q140,147 126,140 M119,206 q1,2 2,0 M103,382 q4,4 8,0 M137,382 q-4,4 -8,0';
 
+  // the neck must not show through the head / fringe: body layers are masked where the head is
+  const NOHEAD = '<mask id="noHead" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="580"><rect x="0" y="0" width="240" height="580" fill="#fff"/><ellipse cx="120" cy="38" rx="21" ry="27.5" fill="#000"/></mask>';
   function figure(style) {
     const acc = 'var(--accent)';
     if (style === 'abstract') {
-      return `
+      return NOHEAD + `
         <defs><linearGradient id="sgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${acc}" stop-opacity=".6"/><stop offset="1" stop-color="var(--accent-2)" stop-opacity=".35"/></linearGradient></defs>
         <ellipse ${HEAD} fill="url(#sgA)"/>
         <rect x="112" y="62" width="16" height="26" rx="7" fill="url(#sgA)" opacity=".8"/>
@@ -60,7 +62,7 @@
         <path d="M158,262 L122,262 L128,520 Q136,530 142,520Z" fill="url(#sgA)" opacity=".8"/>`;
     }
     if (style === 'chrome') {
-      return `
+      return NOHEAD + `
         <defs>
           <linearGradient id="chB" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stop-color="#2d3138"/><stop offset=".16" stop-color="#cfd4dc"/><stop offset=".3" stop-color="#5f656f"/>
@@ -76,35 +78,35 @@
           <radialGradient id="chHead" cx=".4" cy=".32" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#d7dbe2"/><stop offset=".75" stop-color="#7c828c"/><stop offset="1" stop-color="#3a3e45"/></radialGradient>
           <filter id="chGlow"><feGaussianBlur stdDeviation="10"/></filter>
         </defs>
-        <path d="${BODY}" fill="#cfd8e6" opacity=".12" filter="url(#chGlow)"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="#cfd8e6" opacity=".12" filter="url(#chGlow)"/>
         <path d="${HAIR_BACK}" fill="url(#chH)"/>
-        <path d="${BODY}" fill="url(#chB)"/>
-        <path d="${BODY}" fill="url(#chV)"/>
-        <path d="${BODY}" fill="url(#chI)" opacity=".16" style="mix-blend-mode:color"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="url(#chB)"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="url(#chV)"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="url(#chI)" opacity=".16" style="mix-blend-mode:color"/>
         <ellipse ${HEAD} fill="url(#chHead)"/>
         <path d="${HAIR_FRONT}" fill="url(#chH)" opacity=".9"/>
-        <path d="${BODY}" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.3"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="1.3"/>
         <ellipse ${HEAD} fill="none" stroke="#fff" stroke-opacity=".65" stroke-width=".9"/>
         <path d="${DETAIL}" fill="none" stroke="#1a1d22" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/>`;
     }
     if (style === 'soft') {
-      return `
+      return NOHEAD + `
         <defs>
           <linearGradient id="sgS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${acc}" stop-opacity=".42"/><stop offset=".55" stop-color="var(--accent-2)" stop-opacity=".28"/><stop offset="1" stop-color="${acc}" stop-opacity=".16"/></linearGradient>
           <linearGradient id="sgH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${acc}" stop-opacity=".75"/><stop offset="1" stop-color="${acc}" stop-opacity=".35"/></linearGradient>
           <filter id="sgBlur"><feGaussianBlur stdDeviation="8"/></filter>
         </defs>
-        <path d="${BODY}" fill="${acc}" opacity=".18" filter="url(#sgBlur)" transform="translate(0,6)"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="${acc}" opacity=".18" filter="url(#sgBlur)" transform="translate(0,6)"/>
         <path d="${HAIR_BACK}" fill="url(#sgH)"/>
-        <path d="${BODY}" fill="url(#sgS)" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
+        <path mask="url(#noHead)" d="${BODY}" fill="url(#sgS)" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
         <ellipse ${HEAD} fill="url(#sgS)" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>
         <path d="${HAIR_FRONT}" fill="url(#sgH)"/>
         <path d="${DETAIL}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1" stroke-linecap="round"/>`;
     }
     // line
-    return `
+    return NOHEAD + `
       <path d="${HAIR_BACK}" fill="none" stroke="var(--text)" stroke-opacity=".28" stroke-width="1.4"/>
-      <path d="${BODY}" fill="${acc}" fill-opacity=".07" stroke="var(--text)" stroke-opacity=".7" stroke-width="1.8" stroke-linejoin="round"/>
+      <path mask="url(#noHead)" d="${BODY}" fill="${acc}" fill-opacity=".07" stroke="var(--text)" stroke-opacity=".7" stroke-width="1.8" stroke-linejoin="round"/>
       <ellipse ${HEAD} fill="var(--surface-solid)" fill-opacity=".5" stroke="var(--text)" stroke-opacity=".5" stroke-width="1.6"/>
       <path d="${HAIR_FRONT}" fill="var(--text)" fill-opacity=".14" stroke="var(--text)" stroke-opacity=".4" stroke-width="1.2"/>
       <path d="${DETAIL}" fill="none" stroke="var(--text)" stroke-opacity=".28" stroke-width="1.1" stroke-linecap="round"/>`;
@@ -126,7 +128,7 @@
         hits += `<ellipse class="zone-hit" data-zone="${z}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"><title>${H.ZONES[z]}</title></ellipse>`;
       });
     });
-    const svgEl = H.svg(`<svg class="silhouette sil-${style}" viewBox="40 0 160 545" xmlns="http://www.w3.org/2000/svg">
+    const svgEl = H.svg(`<svg class="silhouette sil-${style}" viewBox="40 0 160 562" xmlns="http://www.w3.org/2000/svg">
       <defs><filter id="zgBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter></defs>
       ${figure(style)}
       <g class="glows">${glows}</g>
@@ -142,7 +144,7 @@
 
   // small static preview for settings
   function silhouettePreview(style) {
-    return H.svg(`<svg class="silhouette sil-${style}" viewBox="40 0 160 545">${figure(style)}</svg>`);
+    return H.svg(`<svg class="silhouette sil-${style}" viewBox="40 0 160 562">${figure(style)}</svg>`);
   }
 
   H.silhouette = silhouette;

@@ -125,6 +125,44 @@
       { id: 'calm', name: 'Спокойное 4-6', steps: [['Вдох', 4, 1], ['Выдох', 6, 0]] },
     ];
     let pat = patterns[0], timer = null, left = 0;
+    // ---- sound cues, so it works with closed eyes: rising chime = вдох, soft bell = пауза, falling chime = выдох,
+    // plus a quiet «breath» swell that grows on the inhale and fades on the exhale
+    const st = S().settings;
+    let snd = st.breathSound !== false, ac = null, swell = null;
+    const audio = () => { if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); } if (ac.state === 'suspended') ac.resume(); return ac; };
+    const tone = (freq, at, dur, vol = .16, type = 'sine') => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, at);
+      g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .02); g.gain.exponentialRampToValueAtTime(.0008, at + dur);
+      o.connect(g).connect(ac.destination); o.start(at); o.stop(at + dur + .05);
+    };
+    const bell = (freq, at, vol = .14) => { tone(freq, at, 1.6, vol); tone(freq * 2.01, at, .9, vol * .25); };
+    function startSwell() {
+      if (swell) return;
+      const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520; f.Q.value = .4;
+      const g = ac.createGain(); g.gain.value = 0;
+      src.connect(f).connect(g).connect(ac.destination); src.start();
+      swell = { src, g, f };
+    }
+    function stopSwell() { if (!swell) return; const t = ac.currentTime; swell.g.gain.cancelScheduledValues(t); swell.g.gain.setTargetAtTime(0, t, .2); const s2 = swell; setTimeout(() => { try { s2.src.stop(); } catch (e) {} }, 900); swell = null; }
+    function cue(name, sec, grow) {
+      if (navigator.vibrate) try { navigator.vibrate(name === 'Вдох' ? [60] : name === 'Выдох' ? [30, 60, 30] : [15]); } catch (e) {}
+      if (!snd || !audio()) return;
+      const t = ac.currentTime + .02;
+      if (name === 'Вдох') { tone(523.25, t, .9); tone(659.25, t + .18, 1.1); }
+      else if (name === 'Выдох') { tone(659.25, t, .9); tone(440, t + .18, 1.3); }
+      else bell(783.99, t, .1);
+      startSwell();
+      const g = swell.g.gain, f = swell.f.frequency;
+      g.cancelScheduledValues(t); f.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t); f.setValueAtTime(f.value, t);
+      if (name === 'Вдох') { g.linearRampToValueAtTime(.05, t + sec); f.linearRampToValueAtTime(1100, t + sec); }
+      else if (name === 'Выдох') { g.linearRampToValueAtTime(.004, t + sec); f.linearRampToValueAtTime(380, t + sec); }
+      else { g.linearRampToValueAtTime(grow ? .02 : .004, t + .6); }
+    }
     const circle = h('div.breath-circle', h('div.breath-core'));
     const label = h('div.breath-label', 'Готова?');
     const sub = h('div.breath-sub', '1 минута · за полную сессию +10 кристаллов раз в день');
@@ -133,15 +171,18 @@
       clearTimeout(timer); timer = null; startBtn.textContent = 'Начать';
       circle.style.transition = 'transform 1.2s var(--ease)'; circle.style.transform = 'scale(.6)';
       label.textContent = done ? 'Отлично' : 'Готова?';
+      if (ac) { stopSwell(); if (done && snd) { const t = ac.currentTime + .05; bell(523.25, t, .12); bell(659.25, t + .35, .12); bell(783.99, t + .7, .12); } }
       if (done) H.game.award('breath:' + H.today(), 10, 'дыхание');
     }
     function start() {
+      if (snd) audio();      // must start inside the tap, otherwise iPhone keeps it silent
       left = 60; startBtn.textContent = 'Стоп';
       let i = 0;
       const step = () => {
         if (left <= 0) return stop(true);
         const [name, sec, grow] = pat.steps[i % pat.steps.length];
         label.textContent = name; sub.textContent = `осталось ${left} с`;
+        cue(name, sec, grow);
         circle.style.transition = `transform ${sec}s ease-in-out`;
         circle.style.transform = grow ? 'scale(1)' : 'scale(.6)';
         left -= sec; i++;
@@ -154,12 +195,15 @@
       h('div.card-title', H.gicon('wind', 17, 'sm'), h('h3', 'Дыхание')),
       ui.segmented(patterns.map(p => ({ id: p.id, name: p.name, toggleOff: false })), pat.id, v => { pat = patterns.find(p => p.id === v); if (timer) stop(); }),
       h('div.breath-stage', circle, h('div.breath-text', label, sub)),
-      h('div.row', { style: { justifyContent: 'center' } }, startBtn)));
-    return () => clearTimeout(timer);
+      h('div.row', { style: { justifyContent: 'center', gap: '12px', alignItems: 'center' } }, startBtn,
+        ui.toggle(snd, v => { snd = v; st.breathSound = v; H.store.save(); if (!v && ac) stopSwell(); }, 'звуковые подсказки')),
+      h('p.faint', { style: { fontSize: '.78rem', textAlign: 'center', margin: '10px 0 0' } }, 'Можно дышать с закрытыми глазами: восходящий звон — вдох, мягкий колокольчик — пауза, нисходящий — выдох. На iPhone выключи беззвучный режим.')));
+    return () => { clearTimeout(timer); if (ac) { stopSwell(); setTimeout(() => { try { ac.close(); } catch (e) {} }, 1000); } };
   }
 
   H.views.games = function (root, params) {
     let tab = (params && params.tab) || 'cases';
+    if (!['cases', 'collection', 'breath'].includes(tab)) tab = 'cases';
     const host = h('div');
     let cleanup = null;
     const bal = () => h('div.gem-chip', H.icon('gem', 18), h('b.gem-balance', String(S().game.crystals)), h('span', 'кристаллов'));
@@ -212,14 +256,12 @@
                   h('span.acc-sw', { style: { background: own ? it.color : 'transparent', '--c': it.color } }, own ? null : '?'), h('span.acc-t', h('b', own ? it.name.replace(/^Цвет «(.+)»$/, '$1') : '???'), h('small', { style: { color: rr.color } }, rr.name)));
               })))));
       }
-      if (tab === 'ideas') H.spinners.ideasView(host);
-      if (tab === 'food') H.spinners.foodView(host);
       if (tab === 'breath') cleanup = breathing(host);
     };
     render();
     root.appendChild(h('div.wrap',
-      h('div.view-head', h('div', h('h1', 'Мини-игры'), h('div.sub', 'Кристаллы за заботу о себе, кейсы с реликвиями и бесплатные крутки'))),
-      h('div.tabs-row', ui.segmented([{ id: 'cases', name: 'Кейсы' }, { id: 'collection', name: 'Витрина' }, { id: 'ideas', name: 'Чем заняться' }, { id: 'food', name: 'Что приготовить' }, { id: 'breath', name: 'Дыхание' }].map(x => ({ ...x, toggleOff: false })), tab, v => { tab = v; render(); })),
+      h('div.view-head', h('div', h('h1', 'Отдых'), h('div.sub', 'Кристаллы за заботу о себе, кейсы с реликвиями и дыхание'))),
+      h('div.tabs-row', ui.segmented([{ id: 'cases', name: 'Кейсы' }, { id: 'collection', name: 'Витрина' }, { id: 'breath', name: 'Дыхание' }].map(x => ({ ...x, toggleOff: false })), tab, v => { tab = v; render(); })),
       host));
     return () => { if (cleanup) cleanup(); };
   };

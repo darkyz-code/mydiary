@@ -330,3 +330,19 @@ html.is-mobile .jd-topics { flex-wrap: nowrap; }
 /* the body silhouette is not shown on the phone, so its setting is hidden too */
 html.is-mobile .fsection:has(> .sil-grid) { display: none; }
 html.is-mobile .sil-section { display: none !important; }
+/* v1.10.5 dreams + folders */
+html.is-mobile .dr-stat b { white-space: normal; font-size: .86rem; line-height: 1.25; overflow-wrap: anywhere; min-height: 1.3em; }
+html.is-mobile .dr-stat:not(:nth-child(2)) b { font-size: 1.05rem; }
+html.is-mobile .dr-stats { padding: 14px; }
+html.is-mobile .dr-stat-row { gap: 6px; }
+html.is-mobile .dr-stat { padding: 9px 10px; }
+html.is-mobile .dr-bar { grid-template-columns: 88px 1fr 20px; }
+html.is-mobile .dr-top .btn { width: 100%; justify-content: center; }
+html.is-mobile .dr-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--vpad, 16px)); padding: 0 var(--vpad, 16px); }
+html.is-mobile .dr-chips::-webkit-scrollbar { display: none; }
+html.is-mobile .dr-chips .jr-fchip { flex: none; }
+html.is-mobile .dr-card { padding: 13px 14px 10px; }
+html.is-mobile .jr-folders { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html.is-mobile .jr-folders::-webkit-scrollbar { display: none; }
+html.is-mobile .jr-fchip { flex: none; font-size: .8rem; padding: 6px 12px; }
+html.is-mobile .jr-paper-top .jr-tools { margin: 0 auto 0 0; }

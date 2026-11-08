@@ -10,7 +10,7 @@
   const FILE = 'diary.enc';
   const ITER = 210000;
   // per-device settings that should not travel between phone and computer
-  const DEVICE_ONLY = ['fontScale', 'glass', 'pinSidebar', 'collapsed', 'lastExport', 'devMode', 'devUnlocked', 'syncLast'];
+  const DEVICE_ONLY = ['fontScale', 'glass', 'pinSidebar', 'collapsed', 'lastExport', 'devMode', 'devUnlocked', 'syncLast', 'journalSideHidden', 'journalFolder'];
 
   const ls = {
     get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
