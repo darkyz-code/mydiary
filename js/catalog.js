@@ -197,7 +197,18 @@
     { id: 'aurora', name: 'Сияние', desc: 'Тёмный фон и яркие переливы', sw: ['#0c1a1f', '#1f6f73', '#5a3c8c'], accent: '#3fbf9a' },
   ];
 
-  const ACCENTS = ['#c8ced8', '#8b7cf6', '#ec6fa5', '#f0816a', '#e9a23b', '#3fbf9a', '#4aa3f0', '#5b6cf0', '#7fa37a', '#b04a8f', '#6b7280'];
+  const ACCENTS = ['#c8ced8', '#6b7280'];
+
+  // Only base colours and earned case rewards can be applied.
+  H.availableAccents = function () {
+    const data = H.store.get();
+    const items = Object.values((H.game && H.game.ITEMS) || {});
+    const inventory = (data.game && data.game.inventory) || [];
+    const unlocked = data.settings.unlockedAccents || [];
+    const rewards = items.filter(item => item.type === 'accent' &&
+      (unlocked.includes(item.color) || inventory.some(owned => owned.id === item.id && owned.count > 0)));
+    return [...new Set(ACCENTS.concat(rewards.map(item => item.color)))];
+  };
 
   const SILHOUETTES = [
     { id: 'chrome', name: 'Хром' },

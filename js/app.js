@@ -20,6 +20,10 @@
 
   function applySettings() {
     const st = H.store.get().settings;
+    const accents = H.availableAccents();
+    const currentAccent = String(st.accent || '').toLowerCase();
+    const allowedAccent = accents.includes(currentAccent) ? currentAccent : H.ACCENTS[0];
+    if (st.accent !== allowedAccent) { st.accent = allowedAccent; H.store.save(); }
     const html = document.documentElement;
     html.dataset.theme = st.theme;
     const rgb = H.hexToRgb(st.accent);
