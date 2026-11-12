@@ -101,7 +101,7 @@
         H.syncCard ? H.syncCard() : null,
         H.remindCard ? H.remindCard() : null,
         h('div.glass.card', h('div.card-title', H.gicon('heart', 17, 'sm'), h('h3', 'О приложении')),
-          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.10.5. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
+          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.10.6. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
           st.devUnlocked ? h('div.dev-box',
             h('div.fsection-title', { style: { marginTop: '14px' } }, 'Режим разработчика'),
             ui.toggle(!!st.devMode, v => { st.devMode = v; H.store.save(); }, 'Бесплатные кейсы без ограничений'),
