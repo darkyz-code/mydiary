@@ -15,7 +15,7 @@
       H.THEMES.forEach(t => {
         const [a, b, c] = t.sw;
         const dark = ['night', 'aurora', 'silver'].includes(t.id);
-        themeGrid.appendChild(h('button.theme-card' + (st.theme === t.id ? '.on' : ''), { onclick: () => { st.theme = t.id; st.themeChosen = true; if (t.accent) st.accent = t.accent; if (t.id === 'silver' && st.silhouette === 'line') st.silhouette = 'chrome'; apply(); drawThemes(); drawSw(); drawSil(); } },
+        themeGrid.appendChild(h('button.theme-card' + (st.theme === t.id ? '.on' : ''), { onclick: () => { st.theme = t.id; st.themeChosen = true; if (t.id === 'silver' && st.silhouette === 'line') st.silhouette = 'chrome'; apply(); drawThemes(); drawSw(); drawSil(); } },
           h('div.tp', { style: { background: a } },
             t.id === 'silver' ? h('div.tp-silver') : t.id !== 'minimal' ? [h('div.b', { style: { width: '80px', height: '80px', left: '-10px', top: '-20px', background: b } }), h('div.b', { style: { width: '70px', height: '70px', right: '-6px', top: '10px', background: c } })] : null,
             h('div.g', { style: { background: t.id === 'minimal' ? '#fff' : dark ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.5)', borderColor: t.id === 'minimal' ? '#e4e4e0' : undefined } })),
@@ -29,10 +29,7 @@
     const sw = h('div.swatches');
     const drawSw = () => {
       H.clear(sw);
-      H.ACCENTS.concat(st.unlockedAccents || []).forEach(c => sw.appendChild(h('button.swatch' + (st.accent === c ? '.on' : ''), { style: { background: c }, title: c, onclick: () => { st.accent = c; apply(); drawSw(); } })));
-      const picker = h('input', { type: 'color', value: st.accent });
-      picker.addEventListener('input', () => { st.accent = picker.value; apply(); sw.querySelectorAll('.swatch').forEach(x => x.classList.remove('on')); });
-      sw.appendChild(h('label.swatch-custom', { title: 'Свой цвет' }, picker));
+      H.availableAccents().forEach(c => sw.appendChild(h('button.swatch' + (st.accent === c ? '.on' : ''), { style: { background: c }, title: c, onclick: () => { st.accent = c; apply(); drawSw(); } })));
     };
     drawSw();
 
