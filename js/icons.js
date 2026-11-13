@@ -33,6 +33,7 @@
     user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.8 20c1-3.6 3.7-5.6 7.2-5.6s6.2 2 7.2 5.6"/>',
     heart: '<path d="M12 19.5s-7.5-4.4-7.5-10A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.3c0 5.6-7.5 10-7.5 10z"/>',
     star: '<path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
+    pencil: '<path d="m15 4 5 5M4 20l4.5-1 12-12a2.1 2.1 0 0 0-5-5l-12 12L4 20Z"/>',
     eye: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
     wind: '<path d="M3.5 9h11a3 3 0 1 0-3-3M3.5 13h15a3 3 0 1 1-3 3M3.5 17h6"/>',
     gift: '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11M12 9C10.5 5.5 6.5 5 7 7.5S12 9 12 9zm0 0c1.5-3.5 5.5-4 5-1.5S12 9 12 9z"/>',
@@ -62,7 +63,7 @@
     s.setAttribute('width', size); s.setAttribute('height', size);
     s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
     s.setAttribute('stroke-width', '1.5'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
-    s.setAttribute('class', 'ic' + (cls ? ' ' + cls : ''));
+    s.setAttribute('class', 'ic' + (name === 'eye' ? ' privacy-eye' : name === 'check' ? ' removed-check' : '') + (cls ? ' ' + cls : ''));
     s.innerHTML = P[name] || P.sparkle;
     return s;
   }

@@ -92,7 +92,7 @@
       plansHost.appendChild(h('div.idea-plans',
         h('div.sub-title', 'Мои планы'),
         open.length ? open.map(p => h('div.plan-item',
-          h('button.plan-check', { title: 'Сделала', onclick: () => { p.done = true; p.doneAt = Date.now(); H.store.save(); H.game.award('idea:' + H.today(), 10, 'идея выполнена'); ui.toast('Отлично! Отмечено', '✓'); drawPlans(); } }),
+          h('button.plan-check', { title: 'Сделала', onclick: () => { p.done = true; p.doneAt = Date.now(); H.store.save(); H.game.award('idea:' + H.today(), 10, 'идея выполнена'); ui.toast('Отлично! Отмечено', ''); drawPlans(); } }),
           h('div.plan-main', h('div.plan-t', p.t), h('div.plan-s', (IDEA_CATS[p.c] || {}).name + ' · запланировано ' + H.fmtShort(p.date))),
           h('button.icon-btn.small', { title: 'Убрать', onclick: () => { g.ideaPlans = g.ideaPlans.filter(x => x !== p); H.store.save(); drawPlans(); } }, '✕'))) : h('p.muted', { style: { fontSize: '.84rem' } }, 'Всё запланированное выполнено.'),
         done.length ? h('details.coupon-archive', h('summary', `Сделано (${done.length})`), done.map(p => h('div.arch-item', h('span', p.t), h('span.faint', p.doneAt ? H.fmtShort(H.iso(new Date(p.doneAt))) : ''))),
@@ -110,8 +110,8 @@
         H.append(result, [h('div.res-idea.reveal', cap('Предложение'), h('div.res-idea-t', prize.t)),
           h('div.row', { style: { gap: '10px', justifyContent: 'center', flexWrap: 'wrap' } },
             h('button.btn', { onclick: spin }, H.icon('reset', 16), 'Другое'),
-            h('button.btn', { onclick: () => { const g = G(); if (!g.ideaPlans.some(p => !p.done && p.t === prize.t)) g.ideaPlans.push({ id: H.uid(), t: prize.t, c: prize.c, date: H.today(), done: false }); H.store.save(); ui.toast('Добавлено в «Мои планы»', '✓'); drawPlans(); } }, H.icon('calendar', 16), 'Сделаю'),
-            h('button.btn.primary', { onclick: () => { H.game.award('idea:' + H.today(), 10, 'идея выполнена'); ui.toast('Отлично! Отмечено', '✓'); } }, H.icon('check', 16), 'Сделала'))]);
+            h('button.btn', { onclick: () => { const g = G(); if (!g.ideaPlans.some(p => !p.done && p.t === prize.t)) g.ideaPlans.push({ id: H.uid(), t: prize.t, c: prize.c, date: H.today(), done: false }); H.store.save(); ui.toast('Добавлено в «Мои планы»', ''); drawPlans(); } }, H.icon('calendar', 16), 'Сделаю'),
+            h('button.btn.primary', { onclick: () => { H.game.award('idea:' + H.today(), 10, 'идея выполнена'); ui.toast('Отлично! Отмечено', ''); } }, H.icon('check', 16), 'Сделала'))]);
       }));
     };
     reset(); drawPlans();

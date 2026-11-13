@@ -125,7 +125,8 @@
   function textarea(value, onInput, placeholder, rows = 3) {
     const t = h('textarea.ta', { placeholder, rows });
     t.value = value || '';
-    const fit = () => { t.style.height = 'auto'; t.style.height = Math.max(t.scrollHeight + 2, rows * 22 + 22) + 'px'; };
+    const fit = () => { const value=t.value; if(!value)t.value=t.placeholder; t.style.height = 'auto'; t.style.height = Math.max(t.scrollHeight + 2, rows * 22 + 22) + 'px'; if(!value)t.value=''; };
+    if(window.ResizeObserver) { const ro=new ResizeObserver(()=>{if(!t.isConnected){ro.disconnect();return;}if(t.clientWidth!==t._fitWidth){t._fitWidth=t.clientWidth;fit();}});ro.observe(t); }
     t.addEventListener('input', () => { fit(); onInput && onInput(t.value); });
     setTimeout(fit, 0);
     return t;
@@ -264,7 +265,7 @@
     });
   }
 
-  function toast(text, icon = '✓') {
+  function toast(text, icon = '') {
     let host = document.getElementById('toasts');
     if (!host) { host = h('div#toasts'); document.body.appendChild(host); }
     const t = h('div.toast.glass', h('span.toast-ico', icon), h('span', text));

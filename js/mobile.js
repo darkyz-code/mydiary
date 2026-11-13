@@ -7,8 +7,9 @@
   // iOS home-screen apps sometimes get a viewport shorter than the screen (gap under the tab bar)
   function fitHeight() {
     const standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-    let hgt = window.innerHeight;
-    if (standalone && screen && screen.height) {
+    const editing = document.documentElement.classList.contains('mobile-editing');
+    let hgt = editing && window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (!editing && standalone && screen && screen.height) {
       const portrait = window.innerWidth < window.innerHeight;
       const sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
       if (sh > hgt && sh - hgt < 120) hgt = sh;
@@ -18,6 +19,35 @@
   fitHeight();
   window.addEventListener('resize', fitHeight);
   window.addEventListener('orientationchange', () => setTimeout(fitHeight, 300));
+
+
+  // Keep the insertion point above the software keyboard, without covering it with navigation.
+  const editable = el => el && el.matches && el.matches('textarea,input:not([type=range]):not([type=checkbox]):not([type=radio]),[contenteditable=true]');
+  let caretFrame=0;
+  function revealCaret(){
+    cancelAnimationFrame(caretFrame);caretFrame=requestAnimationFrame(()=>{
+      const el=document.activeElement;if(!editable(el))return;
+      const view=el.closest('.view');if(!view)return;
+      const vv=window.visualViewport, top=(vv?vv.offsetTop:0)+12,bottom=(vv?vv.offsetTop+vv.height:innerHeight)-24;
+      let rect=el.getBoundingClientRect();
+      if(el.isContentEditable){const sel=getSelection();if(sel&&sel.rangeCount&&el.contains(sel.anchorNode)){const range=sel.getRangeAt(0).cloneRange();range.collapse(false);const r=range.getBoundingClientRect();if(r.height)rect=r;else {const node=sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement;const tail=node.childNodes[Math.max(0,sel.anchorOffset-1)];const target=tail&&tail.nodeType===1?tail:node;rect=target.getBoundingClientRect();}}}
+      else if(el.tagName==='TEXTAREA'){
+        const style=getComputedStyle(el),mirror=document.createElement('div');
+        for(const k of ['font','lineHeight','letterSpacing','padding','border','boxSizing','wordBreak','overflowWrap'])mirror.style[k]=style[k];
+        Object.assign(mirror.style,{position:'fixed',left:'-10000px',top:'0',width:rect.width+'px',whiteSpace:'pre-wrap',visibility:'hidden'});
+        mirror.textContent=el.value.slice(0,el.selectionEnd||0);const marker=document.createElement('span');marker.textContent='|';mirror.append(marker);document.body.append(mirror);
+        const y=rect.top+marker.getBoundingClientRect().top-mirror.getBoundingClientRect().top-el.scrollTop;
+        rect={top:y,bottom:y+(parseFloat(style.lineHeight)||24)};mirror.remove();
+      }
+      if(rect.bottom>bottom)view.scrollTop+=rect.bottom-bottom;else if(rect.top<top)view.scrollTop-=top-rect.top;
+    });
+  }
+  function editingState(){document.documentElement.classList.toggle('mobile-editing',!!editable(document.activeElement));fitHeight();revealCaret();}
+  document.addEventListener('focusin',editingState);
+  document.addEventListener('focusout',()=>setTimeout(editingState,0));
+  document.addEventListener('input',revealCaret);
+  document.addEventListener('selectionchange',revealCaret);
+  if(window.visualViewport){visualViewport.addEventListener('resize',()=>{fitHeight();revealCaret();});}
 
   const TABS = [
     { id: 'home', ico: 'home', name: 'Главная' },
@@ -127,7 +157,7 @@
           return h('button.slot' + (on ? '.on' : ''), { onclick: () => {
             const d = W(); d.meds = d.meds || {}; const r = d.meds[m.id] || (d.meds[m.id] = { slots: Array(n).fill(false), dose: m.dose });
             r.slots[i] = !r.slots[i]; r.dose = m.dose; changed('meds'); drawMeds();
-          } }, h('span.chk', on ? '✓' : ''), sn);
+          } }, h('span.chk', on ? '•' : ''), sn);
         });
         medsHost.appendChild(h('div.q-medrow', h('span.m-dot', { style: { background: kind.color } }), h('div.q-mname', h('b', m.name), m.dose ? h('small', m.dose + ' ' + (m.unit || 'мг')) : null), h('div.q-mslots', slots)));
       });
@@ -159,7 +189,7 @@
       card('Таблетки', medsHost),
       card('Что чувствую', emoHost),
       h('div.q-actions',
-        h('button.btn.primary.q-done', { onclick: () => { H.store.persistNow(); ui.toast('Записано ✓'); H.go('home'); } }, 'Готово'),
+        h('button.btn.primary.q-done', { onclick: () => { H.store.persistNow(); ui.toast('Записано'); H.go('home'); } }, 'Готово'),
         h('button.btn', { onclick: () => H.go('day', { date,period }) }, 'Полная анкета'),
         h('button.day-summary-action.sheen', { onclick: () => H.go('day', { date, period, rate: true }) }, h('span.summary-glint'), H.icon('sparkle', 15), 'Итог дня'))));
   };
