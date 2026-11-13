@@ -346,3 +346,10 @@ html.is-mobile .jr-folders { flex-wrap: nowrap; overflow-x: auto; scrollbar-widt
 html.is-mobile .jr-folders::-webkit-scrollbar { display: none; }
 html.is-mobile .jr-fchip { flex: none; font-size: .8rem; padding: 6px 12px; }
 html.is-mobile .jr-paper-top .jr-tools { margin: 0 auto 0 0; }
+
+/* The balance must live outside the hidden desktop titlebar. */
+html.is-mobile #app { padding-top: calc(var(--safe-t) + 54px); }
+#mobile-topbar { display: none; }
+html.is-mobile #mobile-topbar { display: flex; position: fixed; inset: 0 0 auto; height: calc(var(--safe-t) + 54px); padding: var(--safe-t) 16px 0; align-items: center; justify-content: space-between; z-index: 140; background: var(--surface-strong); border-bottom: 1px solid var(--border); }
+.mobile-brand { font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
+html.is-mobile #mobile-topbar #gem-badge { position: static; height: 36px; min-width: 76px; flex-shrink: 0; font-variant-numeric: tabular-nums; }

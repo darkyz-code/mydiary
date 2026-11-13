@@ -2038,3 +2038,16 @@ body.closing-sync::after { content: 'Сохраняю изменения…'; po
 }
 .jr-grid:not(.side-hidden) .jr-newbtn { display: none; }
 .dr-text.muted { font-size: .8rem; font-style: italic; color: var(--text-3); }
+
+/* Visible, restrained destructive actions. */
+.jr-del, .btn.delete-accent, .icon-btn[title^="Удалить"] { color: #d85d68; background: rgba(216,93,104,.12); box-shadow: inset 0 0 0 1px rgba(216,93,104,.38); opacity: 1; }
+.jr-del:hover, .btn.delete-accent:hover, .icon-btn[title^="Удалить"]:hover { color: #f38a94; background: rgba(216,93,104,.22); }
+.jr-del:focus-visible, .btn.delete-accent:focus-visible { outline: 2px solid #d85d68; outline-offset: 3px; }
+
+.checkin-tabs { display:flex; gap:8px; margin-bottom:16px; } .checkin-tabs .btn { flex:1; } .checkin-body h4 { margin:0 0 16px; } .checkin-field { display:grid; gap:8px; margin:18px 0; } .checkin-summary { font-size:.85rem; line-height:1.6; color:var(--text-2); }
+
+/* Dream privacy stays enabled until the eye button is pressed, including on touch devices. */
+.dreams-hidden .dr-text, .dreams-hidden .dr-tags, .dream-text-hidden { filter: blur(8px); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.dream-privacy-toggle.on { color: var(--accent); background: rgba(var(--accent-rgb),.16); }
+
+.ab-card-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; } .ab-random-card { animation: fadeIn .25s ease; } @media(prefers-reduced-motion:reduce) { .ab-random-card { animation:none; } }
