@@ -3,6 +3,7 @@
   const S = () => H.store.get();
 
   function sleepMinutes(d) {
+    if(d?.entriesByPeriod){const seen=new Set(),values=Object.values(d.entriesByPeriod).map(slot=>{const key=slot.sleep?.bed+'|'+slot.sleep?.wake;if(seen.has(key))return null;seen.add(key);return sleepMinutes(slot);}).filter(v=>v!=null);return values.length?values.reduce((a,b)=>a+b,0):null;}
     if (!d || !d.sleep) return null;
     const b = H.timeToMin(d.sleep.bed), w = H.timeToMin(d.sleep.wake);
     if (b === null || w === null) return null;
@@ -10,6 +11,7 @@
     return m;
   }
   function napMinutes(d) {
+    if(d?.entriesByPeriod){const seen=new Set(),values=Object.values(d.entriesByPeriod).map(slot=>{const key=JSON.stringify([slot.sleep?.napStart,slot.sleep?.napEnd,slot.sleep?.nap]);if(seen.has(key))return null;seen.add(key);return napMinutes(slot);}).filter(v=>v!=null);return values.length?values.reduce((a,b)=>a+b,0):null;}
     if (!d || !d.sleep) return null;
     const s = d.sleep;
     if (s.napOn === false) return 0;

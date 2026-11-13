@@ -87,12 +87,13 @@
   }
 
   // ---------- quick check-in (30 seconds) ----------
-  H.views.quick = function (root) {
+  H.views.quick = function (root,params) {
     const date = H.today();
     const S = H.store.get();
-    const R = () => S.days[date];
-    const W = () => H.store.day(date, true);
-    const changed = block => { H.store.touch(date, block); H.game.onDayEdit(date, block); };
+    const period=params?.period||H.activePeriod||'day';H.activePeriod=period;
+    const R = () => H.periods.read(S.days[date],period);
+    const W = () => H.periods.write(H.store.day(date,true),period);
+    const changed = block => { H.periods.touch(H.store.day(date,true),period,block);H.store.touch(date, block); H.game.onDayEdit(date, block); };
     // sleep
     const sl = () => (R() && R().sleep) || {};
     const prev = S.days[H.addDays(date, -1)] && S.days[H.addDays(date, -1)].sleep;
@@ -153,13 +154,13 @@
     const card = (title, ...kids) => h('div.glass.card.q-card', h('div.q-t', title), ...kids);
     root.appendChild(h('div.wrap.q-wrap',
       h('div.q-head', h('div.q-date', H.cap(H.weekday(date)) + ', ' + H.fmtLong(date)), h('h1', 'Как ты сегодня?'), h('p.muted', 'Быстрая отметка — полминуты. Подробнее можно в полной анкете.')),
-      card('День и вечер', H.dayCheckin(R, W, changed)),
+      H.periods.tabs(period,p=>H.go('quick',{period:p})),card(period==='day'?'День':'Вечер', H.dayCheckin(R,W,changed,period)),
       card('Сон', h('div.q-sleep', h('label', h('span', 'уснула'), tIn('bed', prev && prev.bed)), h('label', h('span', 'проснулась'), tIn('wake', prev && prev.wake))), sumEl, h('div.q-sub', 'как спалось'), qual),
       card('Таблетки', medsHost),
       card('Что чувствую', emoHost),
       h('div.q-actions',
         h('button.btn.primary.q-done', { onclick: () => { H.store.persistNow(); ui.toast('Записано ✓'); H.go('home'); } }, 'Готово'),
-        h('button.btn', { onclick: () => H.go('day', { date }) }, 'Полная анкета'),
+        h('button.btn', { onclick: () => H.go('day', { date,period }) }, 'Полная анкета'),
         h('button.btn.ghost', { onclick: () => H.go('day', { date, rate: true }) }, H.icon('sparkle', 15), 'Итог дня'))));
   };
 
@@ -174,7 +175,7 @@
   function mount() {
     const badge = document.getElementById('gem-badge');
     if (badge && !document.getElementById('mobile-topbar')) {
-      const header = h('header#mobile-topbar', h('span.mobile-brand', 'My Diary'), badge);
+      const header = h('header#mobile-topbar', badge);
       document.body.appendChild(header);
     }
     if (!document.getElementById('mnav')) document.body.appendChild(bar);

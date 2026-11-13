@@ -45,6 +45,32 @@
  }
 
 
+
+ function flameRenderer(canvas){
+  const gl=canvas.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,depth:false});if(!gl)return null;
+  const compile=(type,src)=>{const sh=gl.createShader(type);gl.shaderSource(sh,src);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
+  try{
+   const program=gl.createProgram();gl.attachShader(program,compile(gl.VERTEX_SHADER,'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'));
+   gl.attachShader(program,compile(gl.FRAGMENT_SHADER,`precision highp float;
+    uniform vec2 screen;uniform vec2 paper;uniform float ratio;uniform float t;
+    float ease(float x){x=clamp(x,0.,1.);return x*x*(3.-2.*x);}
+    float edgeNoise(float x){return sin(x*1.71)*.5+sin(x*4.13)*.29+sin(x*9.7)*.13;}
+    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+    float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+    float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p=p*2.03+vec2(7.3,4.1);a*=.5;}return v;}
+    void main(){float x=(gl_FragCoord.x/ratio-30.)/paper.x*360.;float y=((screen.y-gl_FragCoord.y)/ratio-100.)/paper.y*450.;float progress=ease(t/.88);float edge=clamp(450.-progress*515.+(edgeNoise(x/35.)*15.+sin(x/83.+progress*5.)*12.)*ease(t/.12),0.,450.);float rise=edge-y;
+     if(x<0.||x>360.||rise<0.||rise>185.||edge<=0.||progress>=1.){gl_FragColor=vec4(0);return;}
+     float time=t*4.4;float h=rise/175.;float curl=(fbm(vec2(x*.021,rise*.025-time*1.9))-.5)*68.*h;
+     vec2 q=vec2((x+curl)*.038,rise*.029-time*3.0);float turbulence=fbm(q);float fuel=.64+.10*sin(x*.07)+.12*n(vec2(x*.014,time*.28));float density=fuel-h+(turbulence-.5)*1.18;
+     float edgeSoft=smoothstep(.04,.25,density);float detail=n(q*3.4+vec2(0,-time));float core=smoothstep(.24,.72,density+detail*.07);
+     vec3 red=vec3(1.,.16,.015),orange=vec3(1.,.47,.035),hot=vec3(1.,.91,.63);vec3 color=mix(red,orange,smoothstep(.07,.4,density));color=mix(color,hot,pow(core,1.8));
+     float side=ease(x/7.)*ease((360.-x)/7.);float fade=ease(t/.035)*ease(edge/28.)*(1.-ease((t-.84)/.16));float alpha=edgeSoft*side*fade*(1.-ease((h-.78)/.22))*.93;
+     gl_FragColor=vec4(color*alpha,alpha);
+    }`));gl.linkProgram(program);if(!gl.getProgramParameter(program,gl.LINK_STATUS))return null;gl.useProgram(program);const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);const at=gl.getAttribLocation(program,'p');gl.enableVertexAttribArray(at);gl.vertexAttribPointer(at,2,gl.FLOAT,false,0,0);const loc=Object.fromEntries(['screen','paper','ratio','t'].map(k=>[k,gl.getUniformLocation(program,k)]));
+   return (time,r,d)=>{gl.viewport(0,0,canvas.width,canvas.height);gl.uniform2f(loc.screen,canvas.width,canvas.height);gl.uniform2f(loc.paper,r.width,r.height);gl.uniform1f(loc.ratio,d);gl.uniform1f(loc.t,time);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);};
+  }catch(e){return null;}
+ }
+
  // Freeze the exact editor appearance for tearing: same typography, theme, text and scroll.
  function copyEditor(source){
   const clone=source.cloneNode(true),originals=[source,...source.querySelectorAll('*')],copies=[clone,...clone.querySelectorAll('*')];
@@ -58,7 +84,7 @@
   paper.dataset.releasing='1';
   const old={visibility:paper.style.visibility,clipPath:paper.style.clipPath,webkitClipPath:paper.style.webkitClipPath,pointerEvents:paper.style.pointerEvents};
   const layer=document.createElement('div');layer.setAttribute('aria-hidden','true');layer.style.cssText='position:fixed;inset:0;z-index:10000;pointer-events:none;overflow:hidden;';document.body.appendChild(layer);
-  const c=document.createElement('canvas');c.style.cssText='position:absolute;pointer-events:none;';let pieces=[];
+  let c=document.createElement('canvas');let shaderDraw=kind==='burn'?flameRenderer(c):null;if(kind==='burn'&&!shaderDraw)c=document.createElement('canvas');c.style.cssText='position:absolute;pointer-events:none;';let pieces=[];
   if(kind==='burn')layer.appendChild(c);
   else {
    const r=paper.getBoundingClientRect();
@@ -75,8 +101,8 @@
     const edge=[];for(let x=0;x<=360;x+=3)edge.push([x,front(x)]);
     const polygon='polygon(0% 0%,100% 0%,'+edge.slice().reverse().map(([x,y])=>(x/360*100)+'% '+(y/450*100)+'%').join(',')+')';paper.style.clipPath=polygon;paper.style.webkitClipPath=polygon;
     // Canvas contains only flames. The editor itself is consumed in place.
-    const d=Math.min(devicePixelRatio||1,1.5),pad=100;c.style.left=(r.left-30)+'px';c.style.top=(r.top-pad)+'px';c.style.width=(r.width+60)+'px';c.style.height=(r.height+pad)+'px';
-    const w=Math.round((r.width+60)*d),h=Math.round((r.height+pad)*d);if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;const g=c.getContext('2d');g.clearRect(0,0,w,h);g.save();g.scale(d,d);g.translate(30,pad);g.scale(r.width/360,r.height/450);g.globalAlpha=1-ease((t-.84)/.16);if(progress>0&&progress<1)drawFire(g,front,t);g.restore();
+    const d=Math.min(devicePixelRatio||1,2),pad=100;c.style.left=(r.left-30)+'px';c.style.top=(r.top-pad)+'px';c.style.width=(r.width+60)+'px';c.style.height=(r.height+pad)+'px';
+    const w=Math.round((r.width+60)*d),h=Math.round((r.height+pad)*d);if(c.width!==w)c.width=w;if(c.height!==h)c.height=h;if(shaderDraw){shaderDraw(t,r,d);}else{const g=c.getContext('2d');g.clearRect(0,0,w,h);g.save();g.scale(d,d);g.translate(30,pad);g.scale(r.width/360,r.height/450);g.globalAlpha=1-ease((t-.84)/.16);if(progress>0&&progress<1)drawFire(g,front,t);g.restore();}
    }else for(let i=0;i<pieces.length;i++){
     const {holder,cx,cy}=pieces[i],split=ease((t-.08-(i%3)*.045)/.34),fall=ease((t-.53-(i%4)*.025)/.43);
     holder.style.left=r.left+'px';holder.style.top=r.top+'px';holder.style.transformOrigin=(cx/360*100)+'% '+(cy/450*100)+'%';holder.style.transform='translate('+((cx-180)*r.width/360*split*.28+noise(i*5)*split*15+Math.sin(i*4+t*9)*fall*40)+'px,'+((cy-225)*r.height/450*split*.16+fall*360)+'px) rotate('+(noise(i*7+1)*split*.30+(i%2?1:-1)*fall*.9)+'rad)';holder.style.opacity=1-ease((t-.84)/.16);
