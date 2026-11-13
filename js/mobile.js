@@ -161,23 +161,20 @@
       h('div.q-actions',
         h('button.btn.primary.q-done', { onclick: () => { H.store.persistNow(); ui.toast('Записано ✓'); H.go('home'); } }, 'Готово'),
         h('button.btn', { onclick: () => H.go('day', { date,period }) }, 'Полная анкета'),
-        h('button.btn.ghost', { onclick: () => H.go('day', { date, rate: true }) }, H.icon('sparkle', 15), 'Итог дня'))));
+        h('button.day-summary-action.sheen', { onclick: () => H.go('day', { date, period, rate: true }) }, h('span.summary-glint'), H.icon('sparkle', 15), 'Итог дня'))));
   };
 
   // open the day summary right away when asked from the quick screen
   const origDay = H.views.day;
   H.views.day = function (root, params) {
     const r = origDay(root, params);
-    if (params && params.rate) setTimeout(() => { const b = [...document.querySelectorAll('.day-head .btn.primary')].find(x => /Оценить/.test(x.textContent)); b && b.click(); }, 250);
+    if (params && params.rate) setTimeout(() => { const b = [...document.querySelectorAll('.day-head .day-summary-action')].find(x => /Оценить/.test(x.textContent)); b && b.click(); }, 250);
     return r;
   };
 
   function mount() {
     const badge = document.getElementById('gem-badge');
-    if (badge && !document.getElementById('mobile-topbar')) {
-      const header = h('header#mobile-topbar', badge);
-      document.body.appendChild(header);
-    }
+    if (badge) document.body.appendChild(badge);
     if (!document.getElementById('mnav')) document.body.appendChild(bar);
     drawBar();
     setTimeout(() => { if (document.querySelector('.home')) homeExtras(); }, 700);

@@ -125,7 +125,7 @@
       host.append(h('div.card-title', H.gicon('bell', 17, 'sm'), h('h3', 'Напоминания о таблетках')));
       const gr = groups();
       const list = gr.length ? h('div.rm-list', gr.map(g => h('div.rm-row', h('span.rm-time', g.t), h('div.rm-main', h('div.rm-t', g.meds.map(x => x.m.name).join(', ')), h('div.rm-s', String(g.slot)))))) : h('p.faint', { style: { fontSize: '.86rem' } }, 'Пока нечего напоминать: добавь препараты в карточке здоровья.');
-      const editLink = h('button.btn.small.ghost', { onclick: () => H.go('profile', { tab: 'meds' }) }, 'Изменить время — в карточке препаратов');
+      const editLink = h('button.btn.small.ghost', { onclick: () => H.go('profile', { tab: 'meds' }) }, H.icon('clock',15), 'Изменить время — в карточке препаратов');
       if (!isPhone()) { // computer
         host.append(h('p.muted.sy-p', 'Напоминания приходят на iPhone — включи их там: «Ещё → Настройки». Время каждого приёма задаётся в карточке препарата и с синхронизацией одинаковое на всех устройствах.'), list, h('div.row', { style: { marginTop: '10px' } }, editLink));
         return;
@@ -144,13 +144,13 @@
       host.append(h('p.muted.sy-p', 'В нужное время на телефон придёт уведомление, даже если приложение закрыто. Нажми на него — откроется «Сегодня», где можно отметить приём.'), tog, msg, list);
       if (on) {
         const st = S().settings; st.remind = st.remind || {};
-        host.append(
+        host.append(h('div.reminder-options',
           h('div.hr'),
           ui.toggle(o.names, v => { st.remind.names = v; H.store.save(); push(true).catch(() => {}); }, 'Писать названия препаратов в уведомлении'),
           ui.field('Напомнить ещё раз, если не отмечено', ui.segmented([{ id: 0, name: 'Нет' }, { id: 15, name: '15 мин' }, { id: 30, name: '30 мин' }, { id: 60, name: '1 час' }].map(x => ({ ...x, toggleOff: false })), o.again, v => { st.remind.again = v; H.store.save(); push(true).catch(() => {}); })),
           h('div.row.wrapr', { style: { gap: '10px', marginTop: '8px' } },
             h('button.btn.small', { onclick: async () => { try { const me = ls.get(); const r = await post('/test', { id: me.id, secret: me.secret }); ui.toast(r.ok ? 'Отправлено — уведомление придёт через пару секунд' : 'Сервер не смог отправить уведомление', r.ok ? '🔔' : '⚠'); } catch (e) { ui.toast('Нет связи с сервером напоминаний', '⚠'); } } }, H.icon('bell', 15), 'Проверить уведомление'),
-            editLink));
+            editLink)));
       } else host.append(h('div.row', { style: { marginTop: '10px' } }, editLink));
     };
     draw();
