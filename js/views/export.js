@@ -127,7 +127,7 @@
         const syms = Object.keys(dd.symptoms).map(id => ({ s: H.store.symptomById(id), v: dd.symptoms[id].score })).filter(x => x.s && x.v >= 3 && x.s.id !== 'sleepiness').sort((a, b) => b.v - a.v).map(x => `${x.s.name.toLowerCase()} ${x.v}`).join(', ');
         const adh = H.metrics.adherence(dd, d);
         const cyc = dd.cycle && dd.cycle.period ? `<span class="per">м${ci ? ' д' + ci.dayN : ''}</span>` : ci && ci.phase !== 'late' ? 'д' + ci.dayN + (ci.pms ? ' ПМС' : '') : '';
-        return `<tr><td>${H.fmtShort(d)}<br><span class="mut">${H.WD_SHORT[H.parse(d).getDay()]}</span></td><td>${cyc}</td><td>${sl != null ? H.fmtDur(sl).replace(' мин', 'м').replace(' ч', 'ч') : ''}</td><td>${w ?? ''}</td><td>${dd.symptoms.sleepiness ? dd.symptoms.sleepiness.score : ''}</td><td>${dd.general.energy ?? ''}</td><td>${esc(emo)}</td><td>${esc(syms)}</td><td>${adh == null ? '' : Math.round(adh * 100) + '%'}</td></tr>`;
+        return `<tr><td>${H.fmtShort(d)}<br><span class="mut">${H.WD_SHORT[H.parse(d).getDay()]}</span></td><td>${cyc}</td><td>${sl != null ? H.fmtDur(sl).replace(' мин', 'м').replace(' ч', 'ч') : ''}</td><td>${w ?? ''}</td><td>${dd.symptoms.sleepiness ? dd.symptoms.sleepiness.score : ''}</td><td>${H.metrics.general(dd).energy ?? ''}</td><td>${esc(emo)}</td><td>${esc(syms)}</td><td>${adh == null ? '' : Math.round(adh * 100) + '%'}</td></tr>`;
       }).join('') + '</table><p class="mut">Сам. — индекс самочувствия 0–100; сонл., энерг. — по шкале 0–10; «м» — месячные, «д» — день цикла.</p>');
     }
 

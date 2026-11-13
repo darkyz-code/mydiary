@@ -65,6 +65,7 @@
     return f;
   }
   function release(paper, kind, title, text) {
+    if (kind === 'burn' || kind === 'tear') return H.releasePaper(paper, kind, title, text);
     return new Promise(res => {
       const f = frozen(paper, title, text);
       const done = () => { f.remove(); res(); };
@@ -235,6 +236,14 @@
       const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().map(k => H.store.get().days[k]).filter(hasDream);
       let filt = 'all', q = '';
       const wrap = h('div.dr-wrap');
+      const privacyButtons = new Set();
+      function syncPrivacy() {
+        const hidden = !!st.dreamBlur;
+        wrap.classList.toggle('dreams-hidden', hidden);
+        privacyButtons.forEach(b=>{b.classList.toggle('on',hidden);b.setAttribute('aria-pressed',String(hidden));b.title=hidden?'Показать сны':'Скрыть сны';b.setAttribute('aria-label',b.title);});
+        document.querySelectorAll('.dr-ta').forEach(t=>{t.classList.toggle('dream-text-hidden',hidden);t.readOnly=hidden;t.setAttribute('aria-hidden',String(hidden));});
+      }
+      function privacyButton() {const b=h('button.icon-btn.small.dream-privacy-toggle',{onclick:()=>{st.dreamBlur=!st.dreamBlur;H.store.save();syncPrivacy();}},H.icon('eye',16));privacyButtons.add(b);return b;}
       const feed = h('div.dr-feed'), statsHost = h('div'), chips = h('div.dr-chips');
       const sBox = h('div.jr-sbox.dr-sbox');
       const sInp = h('input.inp.jr-search', { placeholder: 'Найти в снах…', oninput: e => { q = e.target.value.trim().toLowerCase(); draw(); } });
@@ -255,10 +264,11 @@
           md.close(); draw(); ui.toast && ui.toast('Сон сохранён');
         };
         const md = ui.modal(date === H.today() ? 'Сон за эту ночь' : 'Сон · ночь на ' + H.fmtLong(date),
-          h('div.stack', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), row, ta,
+          h('div.stack', h('div.row', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), privacyButton()), row, ta,
             h('div.muted', { style: { fontSize: '.8rem' } }, 'Сохранится в день ' + H.fmtLongY(date) + ' — в блок «Сон».')),
           { actions: [h('button.btn.primary', { onclick: save }, 'Сохранить')] });
-        setTimeout(() => ta.focus(), 120);
+        syncPrivacy();
+        if (!st.dreamBlur) setTimeout(() => ta.focus(), 120);
       }
 
       function stats(all) {
@@ -300,13 +310,15 @@
       }
 
       function draw() {
+        privacyButtons.forEach(b=>{if(!b.isConnected)privacyButtons.delete(b);});
         const all = collect();
         stats(all);
         H.clear(chips);
         const present = new Set(all.flatMap(d => d.sleep.dreams || []));
         chips.append(h('button.jr-fchip' + (filt === 'all' ? '.on' : ''), { onclick: () => { filt = 'all'; draw(); } }, 'Все'));
         TYPES.filter(t => present.has(t.id)).forEach(t => chips.append(h('button.jr-fchip' + (filt === t.id ? '.on' : ''), { onclick: () => { filt = filt === t.id ? 'all' : t.id; draw(); } }, t.name)));
-        chips.append(h('div', { style: { flex: 1 } }), sBtn);
+        chips.append(h('div', { style: { flex: 1 } }), privacyButton(), sBtn);
+        syncPrivacy();
         const items = all.filter(d => filt === 'all' || (d.sleep.dreams || []).includes(filt)).filter(d => !q || ((d.sleep.dreamText || '') + ' ' + (d.sleep.dreams || []).map(tName).join(' ')).toLowerCase().includes(q));
         H.clear(feed);
         if (!all.length) feed.append(h('div.glass.card.jr-empty', h('div', { style: { fontSize: '2rem' } }, '🌙'), h('b', 'Здесь будут твои сны'), h('p.muted', 'Записывай сон утром — кнопкой выше или в дне, в блоке «Сон». Все сны соберутся здесь лентой.')));
@@ -328,6 +340,7 @@
           h('button.btn.primary', { onclick: () => editor(H.today()) }, H.icon('moon', 15), todayHas ? 'Сон за эту ночь ✓' : '+ Сон за эту ночь')),
         statsHost, chips, sBox, feed);
       draw();
+      syncPrivacy();
       return wrap;
     }
 
@@ -440,7 +453,7 @@
           return;
         }
         const meta = h('span.jr-meta');
-        const updMeta = () => { meta.textContent = `${words(e.text)} ${H.plural(words(e.text), 'слово', 'слова', 'слов')} · ${e.updated !== e.created ? 'изменено ' + H.fmtStamp(e.updated) : 'создано ' + H.fmtStamp(e.created)}`; };
+        const updMeta = () => { meta.textContent = `${e.updated !== e.created ? 'изменено ' + H.fmtStamp(e.updated) : 'создано ' + H.fmtStamp(e.created)}`; };
         const save = H.debounce(() => { e.updated = Date.now(); H.store.save(); updMeta(); drawList(); }, 500);
         const title = h('input.jr-title' + (e.title ? '' : '.hide'), { placeholder: '', value: e.title || '' });
         title.addEventListener('input', () => { e.title = title.value; save(); });
@@ -576,54 +589,40 @@
 
     // ---------- ABOUT ME (interview + portrait) ----------
     function about() {
-      const { X } = ST();
-      const themes = D().about;
-      let mode = 'grid', theme = null, qi = 0;
-      const wrap = h('div');
-      const answeredIn = g => g.items.filter(it => X.about[it.id] && (X.about[it.id].text || '').trim()).length;
-      const draw = () => {
+      const { X } = ST(), themes=D().about;
+      X.aboutDeck=X.aboutDeck||{};
+      let mode='grid',theme=null,it=null,editing=false;
+      const wrap=h('div');
+      const answeredIn=g=>g.items.filter(q=>X.about[q.id]&&(X.about[q.id].text||'').trim()).length;
+      const deal=()=>{const state=X.aboutDeck[theme.id]||(X.aboutDeck[theme.id]={});it=H.pickPortraitQuestion(theme.items,X.about,state);editing=false;mode='ask';H.store.save();draw();};
+      function draw(){
         H.clear(wrap);
-        if (mode === 'grid') {
-          const total = themes.reduce((a, g) => a + g.items.length, 0), done = themes.reduce((a, g) => a + answeredIn(g), 0);
-          wrap.append(
-            h('div.jr-panel-head', h('div', h('h2', 'О себе'), h('p.muted', 'Дневник задаёт вопросы — ты рассказываешь. Из ответов собирается твой портрет.')),
-              h('button.btn' + (done ? '.primary' : ''), { onclick: () => { mode = 'portrait'; draw(); } }, H.icon('card', 15), `Мой портрет · ${done}`)),
-            h('div.ab-prog', h('i', { style: { width: (total ? done / total * 100 : 0) + '%' } }), h('span', `${done} из ${total} ответов`)),
-            h('div.ab-grid', themes.map((g, i) => {
-              const n = answeredIn(g);
-              return h('button.ab-card', { style: { animationDelay: (i * 40) + 'ms' }, onclick: () => { theme = g; qi = Math.max(0, g.items.findIndex(it => !(X.about[it.id] && (X.about[it.id].text || '').trim()))); if (qi < 0) qi = 0; mode = 'ask'; draw(); } },
-                h('div.ab-ring', H.svg(`<svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="19" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="3"/><circle cx="22" cy="22" r="19" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(n / g.items.length * 119.4).toFixed(1)} 200" transform="rotate(-90 22 22)"/></svg>`), h('span', H.icon(g.ic, 16))),
-                h('b', g.name), h('span', g.desc || ''), h('small', `${n} / ${g.items.length}`));
-            })));
-        } else if (mode === 'ask') {
-          const it = theme.items[qi];
-          const rec = X.about[it.id] || { text: '' };
-          const ta = h('textarea.ab-text', { placeholder: 'Можно коротко или длинно — как хочется.' }); ta.value = rec.text || '';
-          const save = H.debounce(() => { X.about[it.id] = { text: ta.value, updated: Date.now() }; H.store.save(); }, 400);
-          ta.addEventListener('input', save);
-          const nav2 = d => { X.about[it.id] = { text: ta.value, updated: Date.now() }; H.store.save(); qi = (qi + d + theme.items.length) % theme.items.length; draw(); };
-          wrap.append(h('div.ab-ask',
-            h('div.row', h('button.btn.small.ghost', { onclick: () => { X.about[it.id] = { text: ta.value, updated: Date.now() }; H.store.save(); mode = 'grid'; draw(); } }, '‹ Все темы'), h('span.faint', { style: { marginLeft: 'auto', fontSize: '.8rem' } }, `${theme.name} · вопрос ${qi + 1} из ${theme.items.length}`)),
-            h('div.ab-dots', theme.items.map((x, i) => h('i' + (i === qi ? '.on' : '') + (X.about[x.id] && (X.about[x.id].text || '').trim() ? '.done' : ''), { onclick: () => nav2(i - qi) }))),
-            h('div.ab-q', { key: it.id }, it.q),
-            it.hint ? h('div.ab-hint', it.hint) : null,
-            ta,
-            h('div.row', { style: { gap: '8px', justifyContent: 'space-between' } },
-              h('button.btn', { onclick: () => nav2(-1) }, '‹ Назад'),
-              h('div.row', { style: { gap: '8px' } }, h('button.btn.ghost', { onclick: () => nav2(1) }, 'Пропустить'), h('button.btn.primary', { onclick: () => nav2(1) }, 'Дальше ›')))));
-          setTimeout(() => ta.focus(), 50);
-        } else {
-          const blocks = themes.map(g => ({ g, items: g.items.filter(it => X.about[it.id] && (X.about[it.id].text || '').trim()) })).filter(b => b.items.length);
-          wrap.append(h('div.portrait',
-            h('div.row', h('button.btn.small.ghost', { onclick: () => { mode = 'grid'; draw(); } }, '‹ К темам')),
-            h('div.pt-hero', h('div.jr-ink'), h('h2', 'Мой портрет'), h('p.muted', blocks.length ? 'Всё, что ты рассказала о себе, — в одном месте.' : 'Ответь на пару вопросов — и здесь появится твой портрет.')),
-            blocks.map(b => h('div.pt-block', h('div.pt-theme', H.icon(b.g.ic, 15), b.g.name),
-              b.items.map(it => h('div.pt-item', h('div.pt-q', it.q), h('div.pt-a', X.about[it.id].text.trim())))))));
+        if(mode==='grid'){
+          const done=themes.reduce((n,g)=>n+answeredIn(g),0);
+          wrap.append(h('div.jr-panel-head',h('div',h('h2','О себе'),h('p.muted','Выбери тему — вытянем один вопрос. Можно ответить, взять другой или остановиться.')),h('button.btn',{onclick:()=>{mode='portrait';draw();}},H.icon('card',15),`Мой портрет · ${done}`)),
+            h('div.ab-grid',themes.map(g=>h('button.ab-card',{onclick:()=>{theme=g;deal();}},H.icon(g.ic,24),h('b',g.name),h('span',g.desc||''),h('small',`${answeredIn(g)} ${H.plural(answeredIn(g),'ответ','ответа','ответов')}`)))));
+        }else if(mode==='ask'&&it){
+          const ta=h('textarea.ab-text',{placeholder:'Можно коротко или длинно — как хочется.'});ta.value=(X.about[it.id]||{}).text||'';
+          const saved=h('span.faint',{role:'status'},ta.value?'Ответ сохранён':'Сохраняется автоматически');
+          const save=()=>{if((X.about[it.id]||{}).text===ta.value||(!X.about[it.id]&&!ta.value.trim()))return;X.about[it.id]={text:ta.value,updated:Date.now()};H.store.save();saved.textContent='Ответ сохранён';};
+          const next=h('button.btn.primary',{disabled:!ta.value.trim(),onclick:()=>{save();if(editing){mode='portrait';draw();}else deal();}},editing?'Сохранить и вернуться':'Сохранить и вытянуть ещё');
+          ta.addEventListener('input',()=>{save();next.disabled=!ta.value.trim();});
+          wrap.append(h('div.ab-ask.ab-random-card',
+            h('div.row',h('button.btn.small.ghost',{onclick:()=>{save();mode='grid';draw();}},'‹ Все темы'),h('span.faint',theme.name)),
+            h('div.ab-q',it.q),it.hint?h('div.ab-hint',it.hint):null,
+            !editing&&(X.about[it.id]||{}).text?h('p.faint','Ты уже отвечала на этот вопрос. Можно дополнить ответ.'):null,
+            ta,saved,h('div.ab-card-actions',next,
+              !editing?h('button.btn.ghost',{onclick:()=>{save();deal();}},H.icon('dice',15),'Другой вопрос'):null,
+              h('button.btn.ghost',{onclick:()=>{save();mode='grid';draw();}},'На сегодня хватит'))));
+        }else{
+          const blocks=themes.map(g=>({g,items:g.items.filter(q=>X.about[q.id]&&(X.about[q.id].text||'').trim())})).filter(b=>b.items.length);
+          wrap.append(h('div.portrait',h('button.btn.small.ghost',{onclick:()=>{mode='grid';draw();}},'‹ К темам'),h('div.pt-hero',h('h2','Мой портрет'),h('p.muted',blocks.length?'Твои ответы по темам. Любой можно дополнить.':'Ответь на один вопрос — здесь появится начало твоего портрета.')),
+            blocks.map(b=>h('div.pt-block',h('div.pt-theme',H.icon(b.g.ic,15),b.g.name),b.items.map(q=>h('div.pt-item',h('div.pt-q',q.q),h('div.pt-a',X.about[q.id].text.trim()),h('button.btn.small.ghost',{onclick:()=>{theme=b.g;it=q;editing=true;mode='ask';draw();}},'Изменить ответ')))))));
         }
-      };
-      draw();
-      return wrap;
+      }
+      draw();return wrap;
     }
+
 
     // ---------- LETTERS ----------
     function letters() {
@@ -659,7 +658,7 @@
       const openLetter = l => {
         l.opened = true; H.store.save();
         const body = h('div.lt-read', h('div.lt-paper', h('div.jr-date', 'Написано ' + H.fmtLongY(l.written)), l.title ? h('h3', l.title) : null, h('div.lt-text', l.text)));
-        ui.modal('Письмо от себя', body, { wide: true, cls: 'letter-modal', actions: [h('button.btn.ghost', { onclick: async () => { if (await ui.confirm('Удалить это письмо?', 'Удалить', true)) { X.letters = X.letters.filter(x => x !== l); ST().X.letters = X.letters; H.store.get().journalX.letters = X.letters; H.store.save(); document.querySelectorAll('.modal-back').forEach(m => m.remove()); draw(); } } }, 'Удалить')], onClose: draw });
+        ui.modal('Письмо от себя', body, { wide: true, cls: 'letter-modal', actions: [h('button.btn.ghost.delete-accent', { onclick: async () => { if (await ui.confirm('Удалить это письмо?', 'Удалить', true)) { X.letters = X.letters.filter(x => x !== l); ST().X.letters = X.letters; H.store.get().journalX.letters = X.letters; H.store.save(); document.querySelectorAll('.modal-back').forEach(m => m.remove()); draw(); } } }, 'Удалить')], onClose: draw });
       };
       draw();
       return wrap;

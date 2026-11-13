@@ -257,12 +257,7 @@
 
     // general
     if (!hidden.includes('general')) {
-      const gv = k => R() && R().general && R().general[k] != null ? R().general[k] : null;
-      const setG = k => v => { const d = W(); if (v == null) delete d.general[k]; else d.general[k] = v; changed('general'); };
-      blocks.push(block('general',
-        srow('Как я себя чувствую', ui.slider({ value: gv('overall'), mode: 'good', onChange: setG('overall') })),
-        srow('Энергия, бодрость', ui.slider({ value: gv('energy'), mode: 'good', onChange: setG('energy') })),
-        srow('Стресс, напряжение', ui.slider({ value: gv('stress'), onChange: setG('stress') }))));
+      blocks.push(block('general', H.dayCheckin(R, W, changed)));
     }
 
     // emotions
