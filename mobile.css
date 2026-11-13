@@ -353,3 +353,5 @@ html.is-mobile #app { padding-top: calc(var(--safe-t) + 54px); }
 html.is-mobile #mobile-topbar { display: flex; position: fixed; inset: 0 0 auto; height: calc(var(--safe-t) + 54px); padding: var(--safe-t) 16px 0; align-items: center; justify-content: space-between; z-index: 140; background: var(--surface-strong); border-bottom: 1px solid var(--border); }
 .mobile-brand { font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
 html.is-mobile #mobile-topbar #gem-badge { position: static; height: 36px; min-width: 76px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+html.is-mobile #mobile-topbar{background:transparent;border:0;justify-content:flex-end;pointer-events:none}html.is-mobile #mobile-topbar #gem-badge{pointer-events:auto;background:rgba(34,36,44,.65);backdrop-filter:blur(12px)}
