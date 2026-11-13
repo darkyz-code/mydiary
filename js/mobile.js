@@ -174,7 +174,8 @@
 
   function mount() {
     const badge = document.getElementById('gem-badge');
-    if (badge) document.body.appendChild(badge);
+    const view = document.querySelector('.view');
+    if (badge && view) view.prepend(badge);
     if (!document.getElementById('mnav')) document.body.appendChild(bar);
     drawBar();
     setTimeout(() => { if (document.querySelector('.home')) homeExtras(); }, 700);

@@ -59,6 +59,9 @@
     current = view; currentParams = params || null;
     const host = document.getElementById('views');
     const el = h('div.view.enter');
+    // Keep the balance inside the scrolling page, preserving its listeners.
+    const balance = document.getElementById('gem-badge');
+    if (balance && document.documentElement.classList.contains('is-mobile')) el.appendChild(balance);
     H.clear(host).appendChild(el);
     try {
       const r = H.views[view](el, params || {});
