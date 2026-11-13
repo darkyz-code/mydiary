@@ -264,7 +264,7 @@
         const md = ui.modal(date === H.today() ? 'Сон за эту ночь' : 'Сон · ночь на ' + H.fmtLong(date),
           h('div.stack', h('div.row', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), privacyButton(date,period)), row, ta,
             h('div.muted', { style: { fontSize: '.8rem' } }, 'Сохранится в день ' + H.fmtLongY(date) + ' — в блок «Сон».')),
-          { actions: [h('button.btn.primary', { onclick: save }, H.icon('check',16),'Сохранить')] });
+          { actions: [h('button.btn.primary', { onclick: save }, 'Сохранить')] });
         syncPrivacy();
         if (!isHidden(date,period)) setTimeout(() => ta.focus(), 120);
       }
@@ -334,7 +334,7 @@
       wrap.append(
         h('div.dr-top',
           h('div', h('div.jr-kicker', 'Сны'), h('div.dr-h', 'Дневник снов'), h('div.muted', { style: { fontSize: '.86rem' } }, 'Все сны из твоих дней — в одном месте.')),
-          h('button.btn.primary', { onclick: () => editor(H.today()) }, H.icon('moon', 15), todayHas ? 'Сон за эту ночь ✓' : '+ Сон за эту ночь')),
+          h('button.btn.primary', { onclick: () => editor(H.today()) }, H.icon('moon', 15), todayHas ? 'Сон за эту ночь' : '+ Сон за эту ночь')),
         statsHost, chips, sBox, feed);
       draw();
       syncPrivacy();
@@ -345,7 +345,8 @@
     function home() {
       const { J, X } = ST();
       const dq = pick(D().daily, dayNum());
-      const answeredToday = J.find(e => e.prompt === dq && H.iso(new Date(e.created)) === H.today());
+      const todayEntry = J.find(e => e.prompt === dq && H.iso(new Date(e.created)) === H.today());
+      const answeredToday = todayEntry && (todayEntry.text||'').trim() ? todayEntry : null;
       const aboutTotal = D().about.reduce((a, g) => a + g.items.length, 0), aboutDone = Object.keys(X.about).filter(k => (X.about[k].text || '').trim()).length;
       const sealed = X.letters.filter(l => l.open > H.today()).length, ready = X.letters.filter(l => l.open <= H.today() && !l.opened).length;
       const wordsTotal = J.reduce((a, e) => a + words(e.text), 0);
@@ -353,7 +354,7 @@
       return h('div.jr-home',
         h('div.jr-hero',
           h('div.jr-ink'),
-          h('div', h('div.jr-kicker', 'Вопрос дня'), h('div.jr-dq', dq),
+          h('div', h('div.jr-kicker', 'Вопрос дня'), answeredToday ? h('div.jr-answered','Ты уже ответила сегодня') : null, h('div.jr-dq', dq),
             h('div.row', { style: { gap: '8px', marginTop: '14px' } },
               answeredToday ? h('button.btn', { onclick: () => { cur = answeredToday.id; go('entries'); } }, 'Открыть ответ') : h('button.btn.primary', { onclick: () => newEntry(dq) }, H.icon('feather', 15), 'Ответить')))),
         h('div.jr-tiles',
@@ -493,7 +494,7 @@
         const past = others.length ? h('details.jr-past', h('summary', `Прошлые ответы на этот вопрос · ${others.length}`), others.map(o => h('button.jr-past-it', { onclick: () => { cur = o.id; sweep(o.id); render(); } }, h('span.faint', H.fmtLongY(H.iso(new Date(o.created)))), h('span', preview(o.text))))) : null;
         const moods = h('div.jr-moods', h('span.faint', 'Погода внутри:'), MOODS.map(m => h('button.jr-mood' + (e.mood === m.id ? '.on' : ''), { title: m.name, style: { '--mc': m.c }, onclick: ev => { e.mood = e.mood === m.id ? null : m.id; ev.currentTarget.parentNode.querySelectorAll('.jr-mood').forEach((b, i) => b.classList.toggle('on', MOODS[i].id === e.mood)); save(); } }, h('i'), h('span', m.name))));
         const paper = h('div.jr-paper', h('div.jr-paper-top', moods, tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, ed);
-        const finish=h('button.btn.primary.small.note-save',{title:'Сохранить и вернуться','aria-label':'Сохранить и вернуться',onclick:()=>{sync();e.updated=Date.now();H.store.persistNow();cur=null;go('home');}},H.icon('check',17),'Сохранить');
+        const finish=h('button.btn.primary.small.note-save',{title:'Сохранить и вернуться','aria-label':'Сохранить и вернуться',onclick:()=>{sync();e.updated=Date.now();H.store.persistNow();cur=null;go('home');}},'Сохранить');
         const privateView=()=>{[ed,title,...paper.querySelectorAll('.jr-q')].forEach(el=>{el.classList.toggle('private-text',hidden(e));el.setAttribute('aria-hidden',String(hidden(e)));});ed.contentEditable=String(!hidden(e));title.readOnly=hidden(e);};privateView();
         const eye=privacy(e,()=>{privateView();drawList();});
         const del = h('button.icon-btn.small.jr-del', { title: 'Удалить запись', onclick: async () => {
@@ -611,7 +612,7 @@
           const ta=h('textarea.ab-text',{placeholder:'Можно коротко или длинно — как хочется.'});ta.value=(X.about[it.id]||{}).text||'';
           const saved=h('span.faint',{role:'status'},ta.value?'Ответ сохранён':'Сохраняется автоматически');
           const save=()=>{if((X.about[it.id]||{}).text===ta.value||(!X.about[it.id]&&!ta.value.trim()))return;X.about[it.id]={text:ta.value,updated:Date.now()};H.store.save();saved.textContent='Ответ сохранён';};
-          const next=h('button.btn.primary',{disabled:!ta.value.trim(),onclick:()=>{save();if(editing){mode='portrait';draw();}else deal();}},H.icon('check',16),editing?'Сохранить и вернуться':'Сохранить и вытянуть ещё');
+          const next=h('button.btn.primary',{disabled:!ta.value.trim(),onclick:()=>{save();if(editing){mode='portrait';draw();}else deal();}},editing?'Сохранить и вернуться':'Сохранить и вытянуть ещё');
           ta.addEventListener('input',()=>{save();next.disabled=!ta.value.trim();});
           wrap.append(h('div.ab-ask.ab-random-card',
             h('div.row',h('button.btn.small.ghost',{onclick:()=>{save();mode='grid';draw();}},'‹ Все темы'),h('span.faint',theme.name)),
@@ -619,11 +620,11 @@
             !editing&&(X.about[it.id]||{}).text?h('p.faint','Ты уже отвечала на этот вопрос. Можно дополнить ответ.'):null,
             ta,saved,h('div.ab-card-actions',next,
               !editing?h('button.btn.ghost',{onclick:()=>{save();deal();}},H.icon('dice',15),'Другой вопрос'):null,
-              h('button.btn.ghost',{onclick:()=>{save();H.store.persistNow();go('home');}},H.icon('check',16),'Сохранить и выйти'))));
+              h('button.btn.ghost',{onclick:()=>{save();H.store.persistNow();go('home');}},'Сохранить и выйти'))));
         }else{
           const blocks=themes.map(g=>({g,items:g.items.filter(q=>X.about[q.id]&&(X.about[q.id].text||'').trim())})).filter(b=>b.items.length);
           wrap.append(h('div.portrait',h('button.btn.small.ghost',{onclick:()=>{mode='grid';draw();}},'‹ К темам'),h('div.pt-hero',h('h2','Мой портрет'),h('p.muted',blocks.length?'Твои ответы по темам. Любой можно дополнить.':'Ответь на один вопрос — здесь появится начало твоего портрета.')),
-            blocks.map(b=>h('div.pt-block',h('div.pt-theme',H.icon(b.g.ic,15),b.g.name),b.items.map(q=>h('div.pt-item',h('div.pt-q',q.q),h('div.pt-a',X.about[q.id].text.trim()),h('button.btn.small.ghost',{onclick:()=>{theme=b.g;it=q;editing=true;mode='ask';draw();}},'Изменить ответ')))))));
+            blocks.map(b=>h('div.pt-block',h('div.pt-theme',H.icon(b.g.ic,15),b.g.name),b.items.map(q=>h('div.pt-item',h('div.pt-q',q.q),h('div.pt-a',X.about[q.id].text.trim()),h('button.icon-btn.small.portrait-edit',{title:'Редактировать ответ','aria-label':'Редактировать ответ',onclick:()=>{theme=b.g;it=q;editing=true;mode='ask';draw();}},H.icon('pencil',16))))))));
         }
       }
       draw();return wrap;
@@ -658,7 +659,7 @@
           ta,
           h('div.fsection-title', 'Когда открыть'),
           h('div.row.wrapr', { style: { gap: '8px' } }, presets.map(([d, n]) => ui.chip(n, d === 30, (e, c) => { l.open = H.addDays(H.today(), d); dateInp.value = l.open; c.parentNode.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); })), dateInp)),
-          { wide: true, actions: [h('button.btn.primary', { onclick: () => { l.text = ta.value; if (!l.text.trim()) return ui.toast('Письмо пустое', 'ℹ'); if (l.open <= H.today()) return ui.toast('Выбери дату в будущем', 'ℹ'); X.letters.push(l); H.store.save(); md.close(); ui.toast('Письмо запечатано до ' + H.fmtLongY(l.open), '✉'); draw(); } }, H.icon('check',16),'Запечатать')] });
+          { wide: true, actions: [h('button.btn.primary', { onclick: () => { l.text = ta.value; if (!l.text.trim()) return ui.toast('Письмо пустое', 'ℹ'); if (l.open <= H.today()) return ui.toast('Выбери дату в будущем', 'ℹ'); X.letters.push(l); H.store.save(); md.close(); ui.toast('Письмо запечатано до ' + H.fmtLongY(l.open), '✉'); draw(); } }, 'Запечатать')] });
         setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 100);
       };
       const openLetter = l => {

@@ -83,7 +83,7 @@
             }
             if (old) Object.assign(old, m); else if (!s.meds.some(x => x.id === m.id)) s.meds.push(m);
             H.store.save(); md.close(); onSave && onSave();
-            if (m.start > H.today()) ui.toast('Препарат появится в дневнике с ' + H.fmtLong(m.start), '✓');
+            if (m.start > H.today()) ui.toast('Препарат появится в дневнике с ' + H.fmtLong(m.start), '');
     }
   };
 
@@ -197,7 +197,7 @@
           const i = s.labPlans.findIndex(x => x.id === pl.id);
           if (i >= 0) s.labPlans[i] = pl; else s.labPlans.push(pl);
           H.store.save(); md.close(); onDone && onDone();
-          ui.toast('Анализ запланирован на ' + H.fmtLong(pl.date), '✓');
+          ui.toast('Анализ запланирован на ' + H.fmtLong(pl.date), '');
         } }, isNew ? 'Запланировать' : 'Сохранить')] });
   }
 

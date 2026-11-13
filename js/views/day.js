@@ -62,7 +62,7 @@
     const head = h('div.day-head',
       h('button.icon-btn', { onclick: () => H.go('home'), title: 'На главную' }, H.icon('home', 18)),
       h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, -1) }), title: 'Предыдущий день' }, '‹'),
-      h('div',
+      h('div.day-heading',
         h('h1', H.cap(H.weekday(date)) + ', ' + H.fmtLong(date)),
         h('div.dh-sub',
           isToday ? h('span.badge', 'Сегодня') : h('button.btn.small.ghost', { onclick: () => H.go('day', { date: H.today() }) }, 'К сегодняшнему дню'),
@@ -391,12 +391,12 @@
           const rec = R() && R().meds[m.id];
           const slotBtns = slots.map((sn, i) => {
             const on = !!(rec && rec.slots && rec.slots[i]);
-            const b = h('button.slot' + (on ? '.on' : ''), h('span.chk', on ? '✓' : ''), sn);
+            const b = h('button.slot' + (on ? '.on' : ''), h('span.chk', on ? '•' : ''), sn);
             b.addEventListener('click', () => {
               const d = W();
               const r = d.meds[m.id] || (d.meds[m.id] = { slots: Array(n).fill(false), dose: m.dose });
               r.slots[i] = !r.slots[i]; r.dose = m.dose;
-              b.classList.toggle('on', r.slots[i]); b.firstChild.textContent = r.slots[i] ? '✓' : '';
+              b.classList.toggle('on', r.slots[i]); b.firstChild.textContent = r.slots[i] ? '•' : '';
               changed('meds');
             });
             return b;
@@ -485,7 +485,7 @@
       blocks.push(block('photo', grid, fileIn, h('p.faint', { style: { fontSize: '.78rem', margin: '10px 0 0' } }, 'Фото хранятся только на этом iPhone. Маленькое превью появится в календаре.')));
     }
     if (!hidden.includes('complaints')) blocks.push(block('complaints', ui.textarea(R() && R().complaints, v => { W().complaints = v; changed('complaints'); }, 'Что беспокоит сегодня? Любые жалобы, даже мелкие — например, «к вечеру тяжесть в ногах», «тошнило после таблетки».', 3)));
-    if (!hidden.includes('thoughts')) blocks.push(block('thoughts', ui.textarea(R() && R().thoughts, v => { W().thoughts = v; changed('thoughts'); }, 'Свободное место для мыслей. Это только для тебя — в PDF для врача мысли не попадут, если ты сама этого не выберешь.', 4)));
+    if (!hidden.includes('thoughts')) blocks.push(block('thoughts', ui.textarea(R() && R().thoughts, v => { W().thoughts = v; changed('thoughts'); }, 'Свободное место для мыслей. Это только для тебя — в PDF для врача мысли не попадут, если ты сама этого не выберешь.', 3)));
     if (!hidden.includes('activities')) {
       const sel = new Set((R() && R().activities) || []);
       blocks.push(block('activities',

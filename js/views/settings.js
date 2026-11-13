@@ -20,7 +20,7 @@
             t.id === 'silver' ? h('div.tp-silver') : t.id !== 'minimal' ? [h('div.b', { style: { width: '80px', height: '80px', left: '-10px', top: '-20px', background: b } }), h('div.b', { style: { width: '70px', height: '70px', right: '-6px', top: '10px', background: c } })] : null,
             h('div.g', { style: { background: t.id === 'minimal' ? '#fff' : dark ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.5)', borderColor: t.id === 'minimal' ? '#e4e4e0' : undefined } })),
           h('div.tn', h('b', t.name), h('span', t.desc)),
-          h('div.chk', '✓')));
+          h('div.chk', '')));
       });
     };
     drawThemes();
@@ -101,7 +101,7 @@
         H.syncCard ? H.syncCard() : null,
         H.remindCard ? H.remindCard() : null,
         h('div.glass.card', h('div.card-title', H.gicon('heart', 17, 'sm'), h('h3', 'О приложении')),
-          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.11.3. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
+          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.11.4. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
           st.devUnlocked ? h('div.dev-box',
             h('div.fsection-title', { style: { marginTop: '14px' } }, 'Режим разработчика'),
             ui.toggle(!!st.devMode, v => { st.devMode = v; H.store.save(); }, 'Бесплатные кейсы без ограничений'),
