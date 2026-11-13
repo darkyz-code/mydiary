@@ -93,21 +93,6 @@
     const R = () => S.days[date];
     const W = () => H.store.day(date, true);
     const changed = block => { H.store.touch(date, block); H.game.onDayEdit(date, block); };
-    const g = () => (R() && R().general) || {};
-
-    const scale = (key, labels, values, icons) => {
-      const row = h('div.q-scale');
-      const draw = () => {
-        H.clear(row);
-        values.forEach((v, i) => row.appendChild(h('button.q-btn' + (g()[key] != null && Math.abs(g()[key] - v) <= 1 ? '.on' : ''), {
-          onclick: () => { const d = W(); d.general = d.general || {}; d.general[key] = v; changed('general'); draw(); },
-        }, h('span.q-ico', icons[i]), h('small', labels[i]))));
-      };
-      draw(); return row;
-    };
-    const faces = ['😣', '😕', '😐', '🙂', '😊'];
-    const bat = ['🪫', '🔋', '🔋', '🔋', '⚡'];
-
     // sleep
     const sl = () => (R() && R().sleep) || {};
     const prev = S.days[H.addDays(date, -1)] && S.days[H.addDays(date, -1)].sleep;
@@ -168,15 +153,14 @@
     const card = (title, ...kids) => h('div.glass.card.q-card', h('div.q-t', title), ...kids);
     root.appendChild(h('div.wrap.q-wrap',
       h('div.q-head', h('div.q-date', H.cap(H.weekday(date)) + ', ' + H.fmtLong(date)), h('h1', 'Как ты сегодня?'), h('p.muted', 'Быстрая отметка — полминуты. Подробнее можно в полной анкете.')),
-      card('Самочувствие', scale('overall', ['тяжело', 'так себе', 'ровно', 'хорошо', 'отлично'], [2, 4, 6, 8, 10], faces)),
-      card('Энергия', scale('energy', ['нет сил', 'мало', 'средне', 'есть', 'много'], [2, 4, 6, 8, 10], bat)),
+      card('День и вечер', H.dayCheckin(R, W, changed)),
       card('Сон', h('div.q-sleep', h('label', h('span', 'уснула'), tIn('bed', prev && prev.bed)), h('label', h('span', 'проснулась'), tIn('wake', prev && prev.wake))), sumEl, h('div.q-sub', 'как спалось'), qual),
       card('Таблетки', medsHost),
       card('Что чувствую', emoHost),
       h('div.q-actions',
         h('button.btn.primary.q-done', { onclick: () => { H.store.persistNow(); ui.toast('Записано ✓'); H.go('home'); } }, 'Готово'),
         h('button.btn', { onclick: () => H.go('day', { date }) }, 'Полная анкета'),
-        R() && Object.keys(R().edited || {}).length ? h('button.btn.ghost', { onclick: () => H.go('day', { date, rate: true }) }, H.icon('sparkle', 15), 'Итог дня') : null)));
+        h('button.btn.ghost', { onclick: () => H.go('day', { date, rate: true }) }, H.icon('sparkle', 15), 'Итог дня'))));
   };
 
   // open the day summary right away when asked from the quick screen
@@ -188,6 +172,11 @@
   };
 
   function mount() {
+    const badge = document.getElementById('gem-badge');
+    if (badge && !document.getElementById('mobile-topbar')) {
+      const header = h('header#mobile-topbar', h('span.mobile-brand', 'My Diary'), badge);
+      document.body.appendChild(header);
+    }
     if (!document.getElementById('mnav')) document.body.appendChild(bar);
     drawBar();
     setTimeout(() => { if (document.querySelector('.home')) homeExtras(); }, 700);

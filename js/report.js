@@ -39,16 +39,16 @@
   function context(date) {
     const d = day(date);
     const det = M().wellbeingDetail(d);
-    const base = M().baseline(date, 30);
-    const prev = lastDays(date, 7).map(dt => ({ dt, d: day(dt), w: M().wellbeing(day(dt)) }));
-    const g = d.general || {};
+    const base = M().baseline(date, 30, d);
+    const prev = lastDays(date, 7).map(dt => ({ dt, d: day(dt), w: comparableIndex(dt, d) }));
+    const g = M().general(d);
     const emos = Object.keys(d.emotions || {}).map(id => ({ e: H.EMOTIONS.find(x => x.id === id), score: Number(d.emotions[id].score) || 5, note: d.emotions[id].note })).filter(x => x.e).sort((a, b) => b.score - a.score);
     const pos = emos.filter(x => x.e.v > 0), neg = emos.filter(x => x.e.v < 0);
     const meds = M().activeMeds(date);
     const missed = [];
-    meds.filter(m => !m.asNeeded).forEach(m => { const rec = d.meds && d.meds[m.id]; const taken = rec && rec.slots ? rec.slots.filter(Boolean).length : 0; if (taken < (Number(m.times) || 1)) missed.push(m); });
+    meds.filter(m => !m.asNeeded).forEach(m => { const rec = d.meds && d.meds[m.id]; const taken = rec && rec.slots ? rec.slots.filter(Boolean).length : 0; if (rec && Array.isArray(rec.slots) && taken < (Number(m.times) || 1)) missed.push(m); });
     const labs = S().labs || [];
-    const lastLab = key => { const l = labs.find(x => x.key === key); if (!l) return null; const r = (l.results || []).slice().sort((a, b) => a.date < b.date ? -1 : 1).pop(); return r ? { ...r, unit: l.unit, v: Number(r.value) } : null; };
+    const lastLab = key => { const l = labs.find(x => x.key === key); if (!l) return null; const r = (l.results || []).filter(r=>r.date && r.date<=date && H.diffDays(date,r.date)<=180).slice().sort((a, b) => a.date < b.date ? -1 : 1).pop(); return r ? { ...r, unit: l.unit, v: Number(r.value) } : null; };
     const streakOf = (pred, max = 30) => { let k = 0; for (let i = 0; i < max; i++) { const x = day(H.addDays(date, -i)); if (x && pred(x)) k++; else break; } return k; };
     return {
       date, d, g, det, base, prev, emos, pos, neg, meds, missed, lastLab, streakOf,
@@ -59,19 +59,34 @@
   }
 
   // personal "with vs without" comparison over history, e.g. walk days vs other days
+  function comparableIndex(date, reference) { const d=day(date);return M().sameFactors(d,reference)?M().wellbeing(d):null; }
   function compare(date, pred, n = 45) {
-    const ds = H.range(H.addDays(date, -n), H.addDays(date, -1));
-    const yes = [], no = [];
-    ds.forEach(dt => { const x = day(dt); const w = M().wellbeing(x); if (w == null) return; (pred(x, dt) ? yes : no).push(w); });
-    if (yes.length < 4 || no.length < 4) return null;
-    return Math.round(H.avg(yes) - H.avg(no));
+    const yes=[],no=[],current=day(date);
+    H.range(H.addDays(date,-n),H.addDays(date,-1)).forEach(dt=>{
+      const x=day(dt),w=comparableIndex(dt,current);if(w==null)return;
+      const marked=pred(x,dt);if(marked!==true && marked!==false)return;
+      (marked?yes:no).push(w);
+    });
+    if(yes.length<6 || no.length<6)return null;
+    const avg=H.avg,ym=avg(yes),nm=avg(no),diff=ym-nm;
+    const variance=(v,m)=>v.reduce((sum,x)=>sum+(x-m)**2,0)/(v.length-1);
+    const error=Math.sqrt(variance(yes,ym)/yes.length+variance(no,nm)/no.length);
+    if(Math.abs(diff)<2*error)return null;
+    return {diff:Math.round(diff),yes:yes.length,no:no.length};
   }
+  const evidence = x => ' Сравнено '+x.yes+' и '+x.no+' дней с одинаковым набором сфер. Это наблюдение, а не доказательство причины.';
 
   // ---------- RULES ----------
   // Each rule: cat, test(c) → payload or falsy. payload: { k: good|warn|info|alert, t, x, p (priority 1..10) }
   const R = [];
   const rule = (cat, fn) => R.push({ cat, fn });
 
+  rule('checkins', c => {
+    const p=c.d.general && c.d.general.periods || {},a=M().rating(p.day && p.day.overall),b=M().rating(p.evening && p.evening.overall);
+    if(a==null && b==null)return null;
+    if(a==null || b==null)return {k:'info',p:5,t:'Одна отметка за день',x:'Итог пока учитывает только '+(a==null?'вечернюю':'дневную')+' оценку. Вторая отметка необязательна и не считается нулём.'};
+    return {k:'info',p:8,t:b>a?'К вечеру стало лучше':b<a?'К вечеру стало тяжелее':'Ровное состояние днём и вечером',x:'Днём '+a+'/10, вечером '+b+'/10. В итог входит среднее '+((a+b)/2)+'/10; разница между отметками сохраняется отдельно.'};
+  });
   // --- SLEEP ---
   rule('sleep', c => c.sleep && c.sleep.inverted && { k: 'warn', p: 9, t: 'Режим сбился', x: `Основной сон начался ${c.sleep.sl.bed} — уже днём. Так бывает после бессонной ночи или при сдвинутом ритме. Сон в светлое время обычно хуже восстанавливает. Мягко возвращаться помогают утренний свет, подъём в одно время и короткий дневной сон вместо долгого.` });
   rule('sleep', c => c.sleep && c.sleep.night != null && c.sleep.night < 5 * 60 && { k: 'warn', p: 8, t: 'Очень короткая ночь', x: `Ночью всего ${H.fmtDur(c.sleep.night)}. После такой ночи сонливость, раздражительность и «туман» почти неизбежны — это эффект недосыпа, а не ты «плохо стараешься».` });
@@ -85,9 +100,9 @@
     if (!c.sleep || !c.sleep.nap) return null;
     const nx = day(H.addDays(c.date, 1)); const lat = nx && nx.sleep && nx.sleep.latency;
     const prevNapLate = lastDays(c.date, 10).filter(dt => { const x = day(dt); const n2 = M().napMinutes(x); const nxt = day(H.addDays(dt, 1)); return n2 > 45 && nxt && nxt.sleep && ['l', 'xl'].includes(nxt.sleep.latency); }).length;
-    return prevNapLate >= 2 && { k: 'info', p: 6, t: 'Похоже, дневной сон мешает ночному', x: `Уже ${pl(prevNapLate, 'раз', 'раза', 'раз')} за 10 дней после долгого дневного сна ты потом долго засыпала. Попробуй ограничить его 30 минутами.` };
+    return prevNapLate >= 2 && { k: 'info', p: 6, t: 'Дневной сон и долгое засыпание', x: `Уже ${pl(prevNapLate, 'раз', 'раза', 'раз')} за 10 дней после долгого дневного сна ты потом долго засыпала. Это совпадение в записях; для вывода о связи пока мало наблюдений.` };
   });
-  rule('sleep', c => c.sleep && (c.sleep.sl.wakeFeel != null && c.sleep.sl.wakeFeel <= 3 || sc(c.d, 'sleepiness') >= 7) && c.sleep.total != null && c.sleep.total >= 7 * 60 && { k: 'warn', p: 8, t: 'Сон не восстанавливает', x: 'Спала достаточно, а бодрости нет. Значит, дело не в количестве сна. Это важный сигнал для врача: так часто проявляется нехватка железа, а ещё бывает побочным эффектом антидепрессантов.' });
+  rule('sleep', c => c.sleep && (c.sleep.sl.wakeFeel != null && c.sleep.sl.wakeFeel <= 3 || sc(c.d, 'sleepiness') >= 7) && c.sleep.total != null && c.sleep.total >= 7 * 60 && { k: 'warn', p: 8, t: 'Сон не восстанавливает', x: 'Отмечены не менее 7 часов сна и низкая бодрость или сильная сонливость. Длительность сна и восстановление сегодня разошлись; по этим отметкам нельзя определить причину.' });
   rule('sleep', c => c.sleep && c.sleep.sl.wakeFeel >= 7 && c.sleep.total >= 6.5 * 60 && { k: 'good', p: 4, t: 'Проснулась отдохнувшей', x: 'Бодрость после пробуждения хорошая — сон сработал.' });
   rule('sleep', c => c.sleep && ['l', 'xl'].includes(c.sleep.sl.latency) && { k: 'info', p: c.sleep.sl.latency === 'xl' ? 6 : 4, t: 'Долго засыпала', x: c.g.stress >= 6 || c.neg.some(x => ['anxiety', 'fear', 'overwhelmed'].includes(x.e.id)) ? 'И день был напряжённым — тревога часто мешает уснуть. Перед сном помогает «выгрузить» мысли на бумагу (раздел «Личные заметки») и 4-7-8 дыхание.' : 'Помогают постоянное время отбоя, меньше экранов и кофеина вечером. Если не спится 20+ минут — лучше встать и вернуться, когда захочется спать.' });
   rule('sleep', c => c.sleep && c.sleep.sl.wakeups >= 3 && { k: 'warn', p: 6, t: 'Прерывистая ночь', x: `Просыпалась ${pl(c.sleep.sl.wakeups, 'раз', 'раза', 'раз')}. Даже при нормальной длине сна дробная ночь даёт усталость. Если так часто — стоит рассказать врачу.` });
@@ -105,7 +120,7 @@
   rule('emo', c => c.nSum && c.nSum > c.pSum * 1.5 && !(c.pSum >= 8 && c.nSum >= 8) && { k: 'warn', p: 6, t: 'Тяжёлые чувства перевешивали', x: `Сильнее всего — ${c.neg.slice(0, 2).map(x => x.e.name.toLowerCase()).join(' и ')}. Ты их заметила и назвала — уже это немного снижает их силу (это показано в исследованиях про «называние чувств»).` });
   rule('emo', c => { const k = c.streakOf(x => ['apathy', 'depressed', 'empty', 'sad', 'emotired'].some(id => emo(x, id) >= 6)); return k >= 4 && { k: 'alert', p: 10, t: `Тяжёлое настроение ${pl(k, 'день', 'дня', 'дней')} подряд`, x: 'Это уже не «плохой день», а период. Расскажи врачу — можно пройти PHQ-9 в «Тестах», чтобы показать динамику. Если появляются мысли о смерти или о том, чтобы навредить себе, — скажи врачу сразу, при сильных мыслях звони 112.' }; });
   rule('emo', c => emo(c.d, 'anxiety') >= 6 && c.sleep && c.sleep.total != null && c.sleep.total < 6.5 * 60 && { k: 'info', p: 7, t: 'Тревога и недосып подпитывают друг друга', x: 'После короткой ночи миндалина (центр тревоги) реагирует заметно сильнее — исследования Мэттью Уокера это хорошо показали. Сегодняшняя тревога может быть частично «недосыпной».' });
-  rule('emo', c => emo(c.d, 'anxiety') >= 7 && !(c.sleep && c.sleep.total < 6.5 * 60) && { k: 'warn', p: 6, t: 'Сильная тревога', x: 'Помогает «заземление»: назови 5 вещей, которые видишь, 4 — которые слышишь, 3 — которые можешь потрогать. И медленный выдох длиннее вдоха.' });
+  rule('emo', c => emo(c.d, 'anxiety') >= 7 && !(c.sleep && c.sleep.total != null && c.sleep.total < 6.5 * 60) && { k: 'warn', p: 6, t: 'Сильная тревога', x: 'Помогает «заземление»: назови 5 вещей, которые видишь, 4 — которые слышишь, 3 — которые можешь потрогать. И медленный выдох длиннее вдоха.' });
   rule('emo', c => (emo(c.d, 'irritation') >= 5 || emo(c.d, 'anger') >= 5 || emo(c.d, 'tearful') >= 5 || emo(c.d, 'swings') >= 5) && c.ci && (c.ci.pms || c.ci.phase === 'luteal') && { k: 'info', p: 6, t: 'Похоже на ПМС', x: 'Раздражительность, слёзы и перепады во второй половине цикла связаны с гормональными колебаниями — это не «характер». Если ПМС сильно мешает жить, у гинеколога есть способы помочь.' });
   rule('emo', c => emo(c.d, 'lonely') >= 6 && { k: 'info', p: 6, t: 'Одиночество', x: 'Даже короткий контакт работает: сообщение подруге, голосовое, разговор с продавцом в кофейне. Гарвардское исследование взрослой жизни показало, что тёплые связи — самый сильный предсказатель благополучия.' });
   rule('emo', c => emo(c.d, 'guilt') >= 6 && { k: 'info', p: 5, t: 'Много вины', x: 'Попробуй сказать себе то, что сказала бы подруге в такой же ситуации. Самосострадание — не слабость: в исследованиях оно связано с большей устойчивостью и меньшей тревогой.' });
@@ -118,14 +133,14 @@
   rule('body', c => { const f = c.lastLab('ferritin'); return (sc(c.d, 'sleepiness') >= 6 || sc(c.d, 'weakness') >= 6 || c.g.energy != null && c.g.energy <= 3) && f && f.v < 30 && { k: 'info', p: 7, t: 'Усталость и железо', x: `Последний ферритин — ${f.value} ${f.unit || ''}. При таких запасах усталость и сонливость ожидаемы даже без анемии; в исследовании Вердона (BMJ, 2003) восполнение железа уменьшало усталость у женщин с низким ферритином. Важно продолжать лечение и пересдать анализ в срок.` }; });
   rule('body', c => { const f = c.lastLab('ferritin'); return c.g.energy != null && c.g.energy <= 3 && !f && { k: 'info', p: 5, t: 'Очень мало энергии', x: 'Если такое длится несколько дней — стоит проверить ферритин, гемоглобин и ТТГ. Можно запланировать анализ в «Карточке здоровья».' }; });
   rule('body', c => sc(c.d, 'dizziness') >= 6 && { k: 'warn', p: 7, t: 'Выраженное головокружение', x: 'Вставай медленно, пей воду, не пропускай еду. При обмороке — скорая; если головокружение частое — к врачу (проверить гемоглобин и давление).' });
-  rule('body', c => sc(c.d, 'headache') >= 6 && ((c.life.water != null && c.life.water <= 3) || c.life.caffeine >= 4 || (c.sleep && c.sleep.total < 6.5 * 60)) && { k: 'info', p: 6, t: 'Головная боль — вероятные причины', x: [c.life.water != null && c.life.water <= 3 ? 'мало воды' : null, c.life.caffeine >= 4 ? 'много кофеина' : null, c.sleep && c.sleep.total < 6.5 * 60 ? 'короткий сон' : null].filter(Boolean).join(', ').replace(/^./, m => m.toUpperCase()) + ' — частые триггеры. Если боль необычно сильная, внезапная или с онемением, нарушением речи — сразу скорая.' });
+  rule('body', c => sc(c.d, 'headache') >= 6 && ((c.life.water != null && c.life.water <= 3) || c.life.caffeine >= 4 || (c.sleep && c.sleep.total != null && c.sleep.total < 6.5 * 60)) && { k: 'info', p: 6, t: 'Что отмечено вместе с головной болью', x: [c.life.water != null && c.life.water <= 3 ? 'мало воды' : null, c.life.caffeine >= 4 ? 'много кофеина' : null, c.sleep && c.sleep.total != null && c.sleep.total < 6.5 * 60 ? 'короткий сон' : null].filter(Boolean).join(', ').replace(/^./, m => m.toUpperCase()) + ' отмечены в тот же день; причину по дневнику определить нельзя. Если боль необычно сильная, внезапная или с онемением, нарушением речи — сразу скорая.' });
   rule('body', c => { const strong = Object.keys(c.d.symptoms || {}).map(id => ({ s: H.store.symptomById(id), v: sc(c.d, id) })).filter(x => x.s && x.v >= 6 && !['sleepiness', 'weakness', 'dizziness', 'headache'].includes(x.s.id)); return strong.length && { k: 'warn', p: 5, t: 'Тело просило внимания', x: `${strong.map(x => x.s.name.toLowerCase()).join(', ')} — выражено заметно. Если держится — запиши для врача, PDF-выгрузка в этом поможет.` }; });
   rule('body', c => (c.d.edited || {}).physical && !Object.keys(c.d.symptoms || {}).some(id => sc(c.d, id) >= 4) && { k: 'good', p: 3, t: 'Тело не беспокоило', x: 'Сильных неприятных ощущений не отмечено.' });
   rule('body', c => { const v = (c.d.edited || {}).vitals ? c.d.vitals || {} : {}; return v.pulse >= 110 && { k: 'warn', p: 7, t: 'Высокий пульс', x: `Пульс ${v.pulse} в покое — много. Он повышается при тревоге, кофеине, нехватке железа и на фоне некоторых препаратов. Если держится или есть одышка, слабость, боль — к врачу.` }; });
 
   // --- MEDS ---
   rule('med', c => c.missed.length && { k: 'warn', p: 7, t: 'Пропущен приём', x: `Не отмечено: ${c.missed.map(m => m.name).join(', ')}.${c.missed.some(m => /велак|венлаф|velax|venlaf|паксил|парокс/i.test(m.name)) ? ' Этот препарат чувствителен к пропускам: возможны головокружение и «разбитость». Не удваивай дозу сама — уточни у врача, как быть.' : ''}` });
-  rule('med', c => { const reg = c.meds.filter(m => !m.asNeeded); if (!reg.length || c.missed.length) return null; const k = c.streakOf(x => M().adherence(x, x.date) === 1, 60); return k >= 7 ? { k: 'good', p: 4, t: `${pl(k, 'день', 'дня', 'дней')} без пропусков`, x: 'Ровный приём — главное условие, чтобы лечение работало.' } : (c.d.edited || {}).meds ? { k: 'good', p: 2, t: 'Все лекарства приняты', x: 'Регулярный приём — основа лечения.' } : null; });
+  rule('med', c => { const reg = c.meds.filter(m => !m.asNeeded); if (!reg.length || c.missed.length || !reg.every(m=>{const r=c.d.meds&&c.d.meds[m.id];return r&&Array.isArray(r.slots)&&r.slots.slice(0,Number(m.times)||1).length===(Number(m.times)||1)&&r.slots.slice(0,Number(m.times)||1).every(v=>v===true);})) return null; const k = c.streakOf(x => M().adherence(x, x.date) === 1, 60); return k >= 7 ? { k: 'good', p: 4, t: `${pl(k, 'день', 'дня', 'дней')} без пропусков`, x: 'Ровный приём — главное условие, чтобы лечение работало.' } : (c.d.edited || {}).meds ? { k: 'good', p: 2, t: 'Все лекарства приняты', x: 'Регулярный приём — основа лечения.' } : null; });
   rule('med', c => { const ad = c.meds.find(m => m.kind === 'antidepressant' && m.start); if (!ad) return null; const w = Math.floor(H.diffDays(c.date, ad.start) / 7); return w >= 0 && w < 6 && { k: 'info', p: 5, t: `${ad.name}: ${w ? pl(w, 'неделя', 'недели', 'недель') : 'первые дни'} приёма`, x: 'Антидепрессантам обычно нужно 2–6 недель, чтобы заметно подействовать, а побочные эффекты (сонливость, тошнота, яркие сны) чаще всего в начале и потом стихают. Отмечай их — так врачу проще решить, что делать.' }; });
   rule('med', c => { const m = c.meds.find(x => (x.doseHistory || []).some(h2 => h2.date && H.diffDays(c.date, h2.date) >= 0 && H.diffDays(c.date, h2.date) <= 14)); return m && { k: 'info', p: 5, t: 'Недавно менялась доза', x: `${m.name}: доза менялась меньше двух недель назад. Перемены в самочувствии сейчас могут быть с этим связаны — это ценно отмечать.` }; });
   rule('med', c => c.life.teaNearIron && { k: 'info', p: 5, t: 'Чай рядом с железом', x: 'Чай, кофе и молочное снижают всасывание железа — лучше разнести хотя бы на 2 часа.' });
@@ -133,22 +148,22 @@
   // --- CYCLE ---
   rule('cycle', c => c.ci && c.ci.phase === 'menstrual' && (c.g.energy != null && c.g.energy <= 4 || sc(c.d, 'weakness') >= 5) && { k: 'info', p: 5, t: 'Месячные забирают силы', x: 'Во время месячных упадок энергии ожидаем, особенно при низком железе. Сегодня можно меньше требовать от себя.' });
   rule('cycle', c => c.d.cycle && ['heavy', 'vheavy'].includes(c.d.cycle.flow) && { k: 'warn', p: 6, t: 'Обильные месячные', x: 'Обильная кровопотеря — одна из главных причин нехватки железа. Если месячные регулярно такие — обязательно скажи гинекологу.' });
-  rule('cycle', c => { if (!c.ci || !(c.ci.phase === 'luteal' || c.ci.pms) || c.idx == null) return null; const diff = compare(c.date, (x, dt) => { const ci = M().cycleInfo(dt); return ci && (ci.phase === 'luteal' || ci.pms); }, 120); return diff != null && diff <= -6 && { k: 'info', p: 6, t: 'Твой цикл влияет на самочувствие', x: `По твоим записям во второй половине цикла ресурс в среднем на ${-diff} ниже. Сейчас как раз эта фаза — часть сегодняшней тяжести может быть циклической и временной.` }; });
+  rule('cycle', c => { if (!c.ci || !(c.ci.phase === 'luteal' || c.ci.pms) || c.idx == null) return null; const diff = compare(c.date, (x, dt) => { const ci = M().cycleInfo(dt); return ci ? (ci.phase === 'luteal' || ci.pms) : null; }, 120); return diff != null && diff.diff <= -6 && { k: 'info', p: 6, t: 'Разница между фазами цикла', x: `По твоим записям во второй половине цикла ресурс в среднем на ${-diff.diff} ниже. ${evidence(diff)}` }; });
   rule('cycle', c => c.ci && c.ci.pms && !c.neg.length && { k: 'info', p: 2, t: 'ПМС-окно', x: 'По прогнозу сейчас ПМС-окно. Если что-то покажется острее обычного — помни про это.' });
 
   // --- LIFESTYLE (personal comparisons) ---
-  rule('life', c => { if (!(c.life.walk >= 20)) return null; const diff = compare(c.date, x => x.lifestyle && x.lifestyle.walk >= 20); return diff != null && diff >= 5 ? { k: 'good', p: 6, t: 'Прогулки тебе помогают', x: `По твоим записям в дни с прогулкой ресурс в среднем на ${diff} выше. Сегодня прогулка была — отлично.` } : { k: 'good', p: 2, t: 'Была прогулка', x: 'Движение и дневной свет — одни из самых доказанных способов поддержать настроение.' }; });
-  rule('life', c => { if (!(c.d.edited || {}).lifestyle || c.life.walk) return null; const diff = compare(c.date, x => x.lifestyle && x.lifestyle.walk >= 20); return diff != null && diff >= 6 && { k: 'info', p: 4, t: 'Без прогулки', x: `В дни с прогулкой твой ресурс в среднем на ${diff} выше. Даже 15 минут завтра могут дать разницу.` }; });
+  rule('life', c => { if (!(c.life.walk >= 20)) return null; const diff = compare(c.date, x => x.lifestyle && x.lifestyle.walk != null ? x.lifestyle.walk >= 20 : null); return diff != null && diff.diff >= 5 ? { k: 'good', p: 6, t: 'Самочувствие в дни с прогулкой', x: `По твоим записям в дни с прогулкой ресурс в среднем на ${diff.diff} выше. Сегодня прогулка отмечена.${evidence(diff)}` } : { k: 'good', p: 2, t: 'Была прогулка', x: 'Движение и дневной свет — одни из самых доказанных способов поддержать настроение.' }; });
+  rule('life', c => { if (c.life.walk == null || c.life.walk !== 0) return null; const diff = compare(c.date, x => x.lifestyle && x.lifestyle.walk != null ? x.lifestyle.walk >= 20 : null); return diff != null && diff.diff >= 6 && { k: 'info', p: 4, t: 'Без прогулки', x: `В дни с прогулкой твой ресурс в среднем на ${diff.diff} выше. ${evidence(diff)}` }; });
   rule('life', c => c.life.caffeine >= 4 && ((c.sleep && ['l', 'xl'].includes(c.sleep.sl.latency)) || emo(c.d, 'anxiety') >= 5) && { k: 'info', p: 5, t: 'Кофеин', x: `${pl(c.life.caffeine, 'чашка', 'чашки', 'чашек')} — немало, а кофеин усиливает тревогу и мешает уснуть ещё 6–8 часов после чашки. Попробуй последнюю — до 14:00.` });
   rule('life', c => c.life.alcohol && { k: 'info', p: 4, t: 'Алкоголь', x: 'Алкоголь ухудшает качество сна и на следующий день может усиливать тревогу и подавленность; с антидепрессантами его лучше избегать — уточни у врача.' });
   rule('life', c => c.life.water != null && c.life.water <= 3 && !(sc(c.d, 'headache') >= 6) && { k: 'info', p: 3, t: 'Мало воды', x: 'Лёгкое обезвоживание само по себе снижает концентрацию и даёт усталость.' });
-  rule('life', c => { if (!c.sleep || c.sleep.total == null || c.idx == null) return null; const diff = compare(c.date, x => { const t = M().totalSleep(x); return t != null && t >= 7 * 60; }); return diff != null && diff >= 6 && c.sleep.total < 7 * 60 && { k: 'info', p: 5, t: 'Тебе особенно важен сон', x: `В дни, когда ты спишь 7+ часов, твой ресурс в среднем на ${diff} выше. Сегодня сна было меньше.` }; });
+  rule('life', c => { if (!c.sleep || c.sleep.total == null || c.idx == null) return null; const diff = compare(c.date, x => { const t = M().totalSleep(x); return t != null ? t >= 7 * 60 : null; }); return diff != null && diff.diff >= 6 && c.sleep.total < 7 * 60 && { k: 'info', p: 5, t: 'Сон и самочувствие в записях', x: `В дни, когда ты спишь 7+ часов, твой ресурс в среднем на ${diff.diff} выше. Сегодня сна было меньше.${evidence(diff)}` }; });
 
   // --- TRENDS ---
   rule('trend', c => { if (c.idx == null || !c.base.mean) return null; const z = (c.idx - c.base.mean) / c.base.sd; return Math.abs(z) >= 1 && { k: z > 0 ? 'good' : 'warn', p: 6, t: z > 0 ? 'Заметно лучше твоей нормы' : 'Заметно ниже твоей нормы', x: `Твой обычный уровень за месяц — около ${Math.round(c.base.mean)}, сегодня ${c.idx}.` }; });
-  rule('trend', c => { const w = [H.addDays(c.date, -2), H.addDays(c.date, -1)].map(dt => M().wellbeing(day(dt))); if (c.idx == null || w.some(x => x == null)) return null; return w[0] > w[1] && w[1] > c.idx && w[0] - c.idx >= 12 && { k: 'warn', p: 6, t: 'Третий день вниз', x: `Ресурс снижается: ${w[0]} → ${w[1]} → ${c.idx}. Посмотри, что изменилось за эти дни — сон, лекарства, нагрузка, цикл.` }; });
-  rule('trend', c => { const w = [H.addDays(c.date, -2), H.addDays(c.date, -1)].map(dt => M().wellbeing(day(dt))); if (c.idx == null || w.some(x => x == null)) return null; return w[0] < w[1] && w[1] < c.idx && c.idx - w[0] >= 12 && { k: 'good', p: 6, t: 'Третий день вверх', x: `Ресурс растёт: ${w[0]} → ${w[1]} → ${c.idx}.` }; });
-  rule('trend', c => { const y = M().wellbeing(day(H.addDays(c.date, -1))); return c.idx != null && y != null && y < 40 && c.idx - y >= 15 && { k: 'good', p: 5, t: 'Восстановление', x: `Вчера было тяжело (${y}), сегодня заметно легче (${c.idx}).` }; });
+  rule('trend', c => { const w = [H.addDays(c.date, -2), H.addDays(c.date, -1)].map(dt => comparableIndex(dt, c.d)); if (c.idx == null || w.some(x => x == null)) return null; return w[0] > w[1] && w[1] > c.idx && w[0] - c.idx >= 12 && { k: 'warn', p: 6, t: 'Третий день вниз', x: `Ресурс снижается: ${w[0]} → ${w[1]} → ${c.idx}. Посмотри, что изменилось за эти дни — сон, лекарства, нагрузка, цикл.` }; });
+  rule('trend', c => { const w = [H.addDays(c.date, -2), H.addDays(c.date, -1)].map(dt => comparableIndex(dt, c.d)); if (c.idx == null || w.some(x => x == null)) return null; return w[0] < w[1] && w[1] < c.idx && c.idx - w[0] >= 12 && { k: 'good', p: 6, t: 'Третий день вверх', x: `Ресурс растёт: ${w[0]} → ${w[1]} → ${c.idx}.` }; });
+  rule('trend', c => { const y = comparableIndex(H.addDays(c.date, -1), c.d); return c.idx != null && y != null && y < 40 && c.idx - y >= 15 && { k: 'good', p: 5, t: 'Восстановление', x: `Вчера было тяжело (${y}), сегодня заметно легче (${c.idx}).` }; });
   rule('trend', c => { if (c.idx == null || !c.base.idx || c.base.n < 14) return null; const max = Math.max(...c.base.idx); return c.idx > max && { k: 'good', p: 7, t: 'Лучший день за месяц', x: 'Выше, чем любой день за последние 30. Запиши, что сегодня было особенным.' }; });
 
   // ---------- percentile & drivers ----------
@@ -170,6 +185,7 @@
   function moodWords(a, c) {
     if (!a) return null;
     const { v, a: ar } = a;
+    if(c && !c.emos.length && c.g.energy==null && c.g.stress==null && !(c.d.symptoms||{}).sleepiness) return {q:'center',name:'По общей оценке',desc:'самочувствие '+(c.g.overall==null?'не отмечено':c.g.overall+'/10')+'; для оценки бодрости и напряжения пока нет данных'};
     if (c && c.pSum >= 6 && c.nSum >= 6 && Math.abs(v) < .3) return { q: 'mixed', name: 'Смешанные чувства', desc: 'и приятное, и тяжёлое одновременно' };
     const q = Math.abs(v) < .15 && Math.abs(ar) < .15 ? 'center' : v >= 0 ? (ar >= 0 ? 'up' : 'calm') : (ar >= 0 ? 'tense' : 'low');
     const QN = { up: 'Подъём', calm: 'Безмятежность', tense: 'Напряжение', low: 'Упадок', center: 'Ровно' };
@@ -261,6 +277,8 @@
     if (!advice.length) advice.push(c.idx != null && c.idx >= 66 ? 'Запиши в заметки, что сегодня помогло, — это твой личный рецепт хорошего дня.' : 'Продолжай отмечать состояние — с каждой неделей выводы становятся точнее и персональнее.');
     // facts (collapsed)
     const sections = [];
+    const checkins = M().checkinFacts(d);
+    if(checkins.length) sections.push({title:'День и вечер',items:checkins});
     if (c.emos.length) sections.push({ title: 'Эмоции', items: c.emos.map(x => `${x.e.e} ${x.e.name} — ${x.score}/10${x.note ? `: «${String(x.note).trim().slice(0, 140)}»` : ''}`) });
     const syms = Object.keys(d.symptoms || {}).map(id => ({ s: H.store.symptomById(id), v: sc(d, id) })).filter(x => x.s && x.v > 0).sort((a, b) => b.v - a.v);
     if (syms.length) sections.push({ title: 'Ощущения', items: syms.map(x => `${x.s.name} — ${x.v}/10`) });

@@ -52,6 +52,11 @@
     ['phoenix', 'Перо феникса', 'mythic', 'phoenix', '#ff8a4a', 'Горит, но не сгорает. Достаётся тем, кто поднимался снова и снова.'],
   ];
   const ACCENT_ITEMS = [
+    ['acc_burgundy', 'Цвет «Бордо»', 'rare', '#9c425c'],
+    ['acc_sage', 'Цвет «Шалфей»', 'common', '#8fb49b'],
+    ['acc_denim', 'Цвет «Дымчатый синий»', 'common', '#8ba7c7'],
+    ['acc_clay', 'Цвет «Терракота»', 'common', '#c68e79'],
+    ['acc_lilac', 'Цвет «Сирень»', 'common', '#b5a0c6'],
     ['acc_rosegold', 'Цвет «Розовое золото»', 'rare', '#e7b4a6'],
     ['acc_sapphire', 'Цвет «Холодный сапфир»', 'rare', '#7aa2ff'],
     ['acc_pearl', 'Цвет «Перламутр»', 'epic', '#e9e2f7'],

@@ -24,6 +24,27 @@
     return (m || 0) + (n || 0);
   }
 
+
+  const rating = v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 10 ? v : null;
+  function general(d) {
+    const old = d && d.general || {}, periods = old.periods || {}, out = {};
+    for (const key of ['overall', 'energy', 'stress']) {
+      const values = ['day','evening'].map(p=>rating(periods[p] && periods[p][key])).filter(v=>v!=null);
+      out[key] = values.length ? values.reduce((a,b)=>a+b,0)/values.length : rating(old[key]);
+    }
+    return out;
+  }
+  function checkinFacts(d) {
+    const p=d && d.general && d.general.periods || {}, rows=[];
+    for(const [key,name] of [['overall','Самочувствие'],['energy','Энергия'],['stress','Стресс']]) {
+      const a=rating(p.day && p.day[key]),b=rating(p.evening && p.evening[key]);
+      if(a==null && b==null)continue;
+      rows.push(name+': день '+(a==null?'не отмечено':a+'/10')+', вечер '+(b==null?'не отмечено':b+'/10')+(a!=null&&b!=null?'; изменение '+(b-a>0?'+':'')+(b-a)+'; среднее '+((a+b)/2)+'/10':'; итог по одной отметке'));
+    }
+    for(const [key,name] of [['day','Днём'],['evening','Вечером']])if(p[key] && p[key].note)rows.push(name+': '+String(p[key].note));
+    return rows;
+  }
+
   // ---------- cycle ----------
   function periodStarts() {
     const days = S().days;
@@ -110,9 +131,10 @@
     if (!meds.length) return null;
     let need = 0, done = 0;
     meds.forEach(m => {
-      const n = Number(m.times) || 1; need += n;
       const rec = d && d.meds && d.meds[m.id];
-      if (rec && rec.slots) done += rec.slots.filter(Boolean).length;
+      if (!rec || !Array.isArray(rec.slots) || !rec.slots.some(v=>typeof v==='boolean')) return;
+      const n = Math.max(1, Number(m.times) || 1); need += n;
+      done += rec.slots.slice(0,n).filter(v=>v===true).length;
     });
     return need ? done / need : null;
   }
@@ -133,7 +155,7 @@
   const TENSE = () => H.EMOTIONS.filter(e => e.g === 'tense').map(e => e.id);
   function wellbeingDetail(d) {
     if (!d) return null;
-    const g = d.general || {}, sy = d.symptoms || {}, sl = d.sleep || {};
+    const g = general(d), sy = d.symptoms || {}, sl = d.sleep || {};
     const dom = {};
     const wavg = arr => { const v = arr.filter(x => x[0] != null && !isNaN(x[0])); if (!v.length) return null; const w = v.reduce((a, x) => a + x[1], 0); return v.reduce((a, x) => a + x[0] * x[1], 0) / w; };
     // mood: overall rating + balance of pleasant vs heavy emotions (heavy ones weigh a bit more)
@@ -186,7 +208,7 @@
   function affect(d) {
     if (!d) return null;
     let sv = 0, sa = 0, w = 0;
-    const g = d.general || {}, sy = d.symptoms || {};
+    const g = general(d), sy = d.symptoms || {};
     for (const id in d.emotions || {}) {
       const m = H.emoModel(H.EMOTIONS.find(x => x.id === id)); if (!m) continue;
       const k = (Number(d.emotions[id].score) || 5) / 10;
@@ -200,9 +222,13 @@
     return { v: H.clamp(sv / w, -1, 1), a: H.clamp(sa / w, -1, 1), w };
   }
   // personal baseline: means of index and domains over previous N days
-  function baseline(date, n = 30) {
+  function sameFactors(a,b) {
+    const x=wellbeingDetail(a),y=wellbeingDetail(b);
+    return !!(x&&y&&x.present.slice().sort().join('|')===y.present.slice().sort().join('|'));
+  }
+  function baseline(date, n = 30, reference = null) {
     const ds = H.range(H.addDays(date, -n), H.addDays(date, -1));
-    const rows = ds.map(dt => wellbeingDetail(S().days[dt])).filter(Boolean);
+    const rows = ds.filter(dt=>!reference || sameFactors(S().days[dt],reference)).map(dt => wellbeingDetail(S().days[dt])).filter(Boolean);
     if (rows.length < 5) return { n: rows.length };
     const dom = {};
     ['mood', 'energy', 'body', 'sleep', 'calm', 'care'].forEach(k => { const v = rows.map(r => r.domains[k]).filter(x => x != null); dom[k] = v.length >= 4 ? H.avg(v) : null; });
@@ -224,9 +250,9 @@
   function symVal(id) { return d => d && d.symptoms && d.symptoms[id] ? Number(d.symptoms[id].score) : null; }
   const METRICS = [
     { id: 'wellbeing', name: 'Самочувствие (индекс)', get: d => { const w = wellbeing(d); return w == null ? null : w / 10; }, good: true },
-    { id: 'overall', name: 'Оценка дня', get: d => d && d.general && d.general.overall != null ? d.general.overall : null, good: true },
-    { id: 'energy', name: 'Энергия', get: d => d && d.general && d.general.energy != null ? d.general.energy : null, good: true },
-    { id: 'stress', name: 'Стресс', get: d => d && d.general && d.general.stress != null ? d.general.stress : null },
+    { id: 'overall', name: 'Оценка дня', get: d => general(d).overall, good: true },
+    { id: 'energy', name: 'Энергия', get: d => general(d).energy, good: true },
+    { id: 'stress', name: 'Стресс', get: d => general(d).stress },
     { id: 'sleepiness', name: 'Сонливость', get: symVal('sleepiness') },
     { id: 'weakness', name: 'Слабость', get: symVal('weakness') },
     { id: 'dizziness', name: 'Головокружение', get: symVal('dizziness') },
@@ -282,7 +308,7 @@
     return { r: sxy / Math.sqrt(sxx * syy), n };
   }
 
-  Object.assign(H, { metrics: { affect, baseline, wellbeingDetail, sleepMinutes, napMinutes, totalSleep, periodStarts, cycleStats, cycleLength, cycleInfo, isPredictedPeriod, forecast, activeMeds, adherence, emoSplit, wellbeing, filledBlocks, METRICS, metricValue, seriesFor, pearson } });
+  Object.assign(H, { metrics: { sameFactors, rating, general, checkinFacts, affect, baseline, wellbeingDetail, sleepMinutes, napMinutes, totalSleep, periodStarts, cycleStats, cycleLength, cycleInfo, isPredictedPeriod, forecast, activeMeds, adherence, emoSplit, wellbeing, filledBlocks, METRICS, metricValue, seriesFor, pearson } });
 })(window.H);
 
 /* «Как считается индекс» — plain-language breakdown of today's number */
@@ -298,7 +324,7 @@
     });
     ui.modal('Как считается индекс', h('div.stack',
       x ? h('p', { style: { margin: 0 } }, `Сегодня — ${x.index} из 100, по ${x.areas} ${H.plural(x.areas, 'сфере', 'сферам', 'сферам')}.`) : h('p.muted', { style: { margin: 0 } }, 'Пока нечего считать — отметь хотя бы самочувствие.'),
-      h('div.ix-list', rows),
+      h('div.ix-list', rows), h('p', 'День и вечер: каждый показатель усредняется по заполненным отметкам с равным весом. Одна отметка используется сама по себе; пустая не считается нулём. Количество оценок не увеличивает вес сферы.'),
       h('div.ix-rules',
         h('p', h('b', 'Считается только то, что ты отметила. '), 'Неотмеченные сферы не тянут индекс вниз: если отметила три пункта и все хорошие — индекс будет высоким. Каждая новая отметка его уточняет.'),
         h('p', 'Индекс — это среднее по сферам с весами: настроение ×2, энергия ×1,5, тело и сон ×1,2, спокойствие ×1, таблетки ×0,5. 100 — всё отлично, 50 — ровно, ниже 30 — тяжёлый день.'),
