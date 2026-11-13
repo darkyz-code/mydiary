@@ -494,7 +494,7 @@
     }
 
     // saved report
-    const reportHost = h('div');
+    const reportHost = h('div.day-report-host');
     function renderSavedReport() {
       H.clear(reportHost);
       const d = S.days[date];
