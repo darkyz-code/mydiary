@@ -233,42 +233,40 @@
       const TYPES = H.DREAMS.filter(x => x.id !== 'none');
       const tName = id => (H.DREAMS.find(x => x.id === id) || {}).name || id;
       const hasDream = d => d && d.sleep && (((d.sleep.dreamText || '').trim()) || (d.sleep.dreams || []).some(x => x !== 'none'));
-      const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().map(k => H.store.get().days[k]).filter(hasDream);
+      const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().flatMap(k => ['day','evening'].map(period=>({...H.periods.read(H.store.get().days[k],period),_period:period}))).filter(hasDream);
       let filt = 'all', q = '';
       const wrap = h('div.dr-wrap');
-      const privacyButtons = new Set();
-      function syncPrivacy() {
-        const hidden = !!st.dreamBlur;
-        wrap.classList.toggle('dreams-hidden', hidden);
-        privacyButtons.forEach(b=>{b.classList.toggle('on',hidden);b.setAttribute('aria-pressed',String(hidden));b.title=hidden?'Показать сны':'Скрыть сны';b.setAttribute('aria-label',b.title);});
-        document.querySelectorAll('.dr-ta').forEach(t=>{t.classList.toggle('dream-text-hidden',hidden);t.readOnly=hidden;t.setAttribute('aria-hidden',String(hidden));});
-      }
-      function privacyButton() {const b=h('button.icon-btn.small.dream-privacy-toggle',{onclick:()=>{st.dreamBlur=!st.dreamBlur;H.store.save();syncPrivacy();}},H.icon('eye',16));privacyButtons.add(b);return b;}
+      st.dreamPrivacy=st.dreamPrivacy||{};
+      const privacyKey=(date,period='day')=>date+'|'+period;
+      if(st.dreamBlur){collect().forEach(d=>{const key=privacyKey(d.date,d._period);if(st.dreamPrivacy[key]==null)st.dreamPrivacy[key]=true;});delete st.dreamBlur;H.store.save();}
+      const isHidden=(date,period='day')=>st.dreamPrivacy[privacyKey(date,period)]??!!st.dreamBlur;
+      function syncPrivacy(){document.querySelectorAll('[data-dream-key]').forEach(el=>{const key=el.dataset.dreamKey,hidden=st.dreamPrivacy[key]??!!st.dreamBlur;el.classList.toggle('private-text',hidden);if(el.matches('textarea')){el.readOnly=hidden;el.setAttribute('aria-hidden',String(hidden));}});}
+      function privacyButton(date,period='day'){const b=h('button.icon-btn.small',{title:isHidden(date,period)?'Показать этот сон':'Скрыть этот сон','aria-label':isHidden(date,period)?'Показать этот сон':'Скрыть этот сон',onclick:()=>{const key=privacyKey(date,period);st.dreamPrivacy[key]=!isHidden(date,period);H.store.save();b.title=st.dreamPrivacy[key]?'Показать этот сон':'Скрыть этот сон';b.setAttribute('aria-label',b.title);syncPrivacy();}},H.icon('eye',16));return b;}
       const feed = h('div.dr-feed'), statsHost = h('div'), chips = h('div.dr-chips');
       const sBox = h('div.jr-sbox.dr-sbox');
       const sInp = h('input.inp.jr-search', { placeholder: 'Найти в снах…', oninput: e => { q = e.target.value.trim().toLowerCase(); draw(); } });
       sBox.append(sInp);
       const sBtn = h('button.icon-btn.small', { title: 'Поиск', onclick: () => { const o = sBox.classList.toggle('open'); if (o) setTimeout(() => sInp.focus(), 60); else if (q) { sInp.value = ''; q = ''; draw(); } } }, H.icon('search', 16));
 
-      function editor(date) {
-        const d0 = H.store.day(date) || {}; const s0 = d0.sleep || {};
+      function editor(date,period='day') {
+        const d0 = H.periods.read(H.store.day(date),period) || {}; const s0 = d0.sleep || {};
         const sel = new Set((s0.dreams || []).filter(x => x !== 'none'));
         const row = h('div.chips', TYPES.map(t => ui.chip(t.name, sel.has(t.id), (e, c) => { if (sel.has(t.id)) sel.delete(t.id); else sel.add(t.id); c.classList.toggle('on', sel.has(t.id)); })));
-        const ta = h('textarea.ta.dr-ta', { rows: 6, placeholder: 'Что снилось? Образы, люди, места, ощущения после пробуждения…' }); ta.value = s0.dreamText || '';
+        const ta = h('textarea.ta.dr-ta', { rows: 6, placeholder: 'Что снилось? Образы, люди, места, ощущения после пробуждения…' }); ta.value = s0.dreamText || '';ta.dataset.dreamKey=privacyKey(date,period);
         const save = () => {
-          const d = H.store.day(date, true); d.sleep = d.sleep || {};
+          const d = H.periods.write(H.store.day(date,true),period); d.sleep = d.sleep || {};
           const txt = ta.value.replace(/\s+$/, '');
           if (sel.size) d.sleep.dreams = [...sel]; else delete d.sleep.dreams;
           if (txt.trim()) d.sleep.dreamText = txt; else delete d.sleep.dreamText;
-          H.store.touch(date, 'sleep'); H.game && H.game.onDayEdit && H.game.onDayEdit(date, 'sleep');
+          H.periods.touch(H.store.day(date,true),period,'sleep');H.store.touch(date, 'sleep'); H.game && H.game.onDayEdit && H.game.onDayEdit(date, 'sleep');
           md.close(); draw(); ui.toast && ui.toast('Сон сохранён');
         };
         const md = ui.modal(date === H.today() ? 'Сон за эту ночь' : 'Сон · ночь на ' + H.fmtLong(date),
-          h('div.stack', h('div.row', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), privacyButton()), row, ta,
+          h('div.stack', h('div.row', h('div.muted', { style: { fontSize: '.86rem' } }, 'Каким был сон?'), privacyButton(date,period)), row, ta,
             h('div.muted', { style: { fontSize: '.8rem' } }, 'Сохранится в день ' + H.fmtLongY(date) + ' — в блок «Сон».')),
-          { actions: [h('button.btn.primary', { onclick: save }, 'Сохранить')] });
+          { actions: [h('button.btn.primary', { onclick: save }, H.icon('check',16),'Сохранить')] });
         syncPrivacy();
-        if (!st.dreamBlur) setTimeout(() => ta.focus(), 120);
+        if (!isHidden(date,period)) setTimeout(() => ta.focus(), 120);
       }
 
       function stats(all) {
@@ -297,27 +295,26 @@
       function card(d) {
         const s = d.sleep, types = (s.dreams || []).filter(x => x !== 'none'), txt = (s.dreamText || '').trim();
         const mins = H.metrics.sleepMinutes(d);
-        const body = txt ? h('div.dr-text', txt) : h('div.dr-text.muted', 'без описания');
+        const body = txt ? h('div.dr-text', txt) : h('div.dr-text.muted', 'без описания');body.dataset.dreamKey=privacyKey(d.date,d._period);body.classList.toggle('private-text',isHidden(d.date,d._period));
         if (txt.length > 260) { body.classList.add('clamp'); body.onclick = () => body.classList.toggle('clamp'); }
         return h('div.glass.dr-card',
           h('div.dr-head',
             h('div', h('div.dr-date', 'Ночь на ' + H.fmtLong(d.date)), h('div.dr-sub', H.cap(H.weekday(d.date)) + (mins ? ' · сон ' + H.fmtDur(mins) : '') + (s.quality != null ? ' · качество ' + s.quality + '/10' : ''))),
             h('div', { style: { flex: 1 } }),
-            h('button.icon-btn.small', { title: 'Изменить', onclick: () => editor(d.date) }, H.icon('feather', 15))),
+            privacyButton(d.date,d._period),h('button.icon-btn.small', { title: 'Изменить', onclick: () => editor(d.date,d._period) }, H.icon('feather', 15))),
           types.length ? h('div.dr-tags', types.map(t => h('span.dr-tag.t-' + t, tName(t)))) : null,
           body,
           h('button.dr-open', { onclick: () => H.go('day', { date: d.date }) }, 'открыть день ›'));
       }
 
       function draw() {
-        privacyButtons.forEach(b=>{if(!b.isConnected)privacyButtons.delete(b);});
         const all = collect();
         stats(all);
         H.clear(chips);
         const present = new Set(all.flatMap(d => d.sleep.dreams || []));
         chips.append(h('button.jr-fchip' + (filt === 'all' ? '.on' : ''), { onclick: () => { filt = 'all'; draw(); } }, 'Все'));
         TYPES.filter(t => present.has(t.id)).forEach(t => chips.append(h('button.jr-fchip' + (filt === t.id ? '.on' : ''), { onclick: () => { filt = filt === t.id ? 'all' : t.id; draw(); } }, t.name)));
-        chips.append(h('div', { style: { flex: 1 } }), privacyButton(), sBtn);
+        chips.append(h('div', { style: { flex: 1 } }), sBtn);
         syncPrivacy();
         const items = all.filter(d => filt === 'all' || (d.sleep.dreams || []).includes(filt)).filter(d => !q || ((d.sleep.dreamText || '') + ' ' + (d.sleep.dreams || []).map(tName).join(' ')).toLowerCase().includes(q));
         H.clear(feed);
@@ -360,21 +357,26 @@
             h('div.row', { style: { gap: '8px', marginTop: '14px' } },
               answeredToday ? h('button.btn', { onclick: () => { cur = answeredToday.id; go('entries'); } }, 'Открыть ответ') : h('button.btn.primary', { onclick: () => newEntry(dq) }, H.icon('feather', 15), 'Ответить')))),
         h('div.jr-tiles',
-          tile('prompts', 'compass', 'Вопросы', `${allPrompts().length} вопросов в ${D().prompts.length} темах`),
-          tile('about', 'mind', 'О себе', `${aboutDone} из ${aboutTotal} — твой портрет`, h('div.jt-prog', h('i', { style: { width: (aboutTotal ? aboutDone / aboutTotal * 100 : 0) + '%' } }))),
-          tile('letters', 'clock', 'Письма в будущее', ready ? `${ready} ${H.plural(ready, 'письмо можно', 'письма можно', 'писем можно')} открыть ✨` : sealed ? `${sealed} ${H.plural(sealed, 'письмо ждёт', 'письма ждут', 'писем ждут')} своего дня` : 'напиши себе через месяц или год'),
+          tile('entries', 'feather', 'Все записи', J.length ? `${J.length} ${H.plural(J.length, 'запись', 'записи', 'записей')}` : 'пока пусто'),
           tile('joy', 'star', 'Банка радостей', X.joys.length ? `${X.joys.length} ${H.plural(X.joys.length, 'радость', 'радости', 'радостей')} внутри` : 'собирай маленькие хорошие моменты'),
+          tile('letters', 'clock', 'Письма в будущее', ready ? `${ready} ${H.plural(ready, 'письмо можно', 'письма можно', 'писем можно')} открыть ✨` : sealed ? `${sealed} ${H.plural(sealed, 'письмо ждёт', 'письма ждут', 'писем ждут')} своего дня` : 'напиши себе через месяц или год'),
           tile('vent', 'wind', 'Выговориться', 'написать всё как есть — и отпустить'),
-          tile('entries', 'feather', 'Все записи', J.length ? `${J.length} ${H.plural(J.length, 'запись', 'записи', 'записей')} · ${wordsTotal} ${H.plural(wordsTotal, 'слово', 'слова', 'слов')}` : 'пока пусто')),
+          tile('prompts', 'compass', 'Вопросы', `${allPrompts().length} вопросов в ${D().prompts.length} темах`),
+          tile('about', 'mind', 'О себе', `${aboutDone} из ${aboutTotal} — твой портрет`, h('div.jt-prog', h('i', { style: { width: (aboutTotal ? aboutDone / aboutTotal * 100 : 0) + '%' } })))),
         null);
     }
 
     // ---------- ENTRIES ----------
     function entries(focus) {
       const { J } = ST();
+      if(st.journalBlur){J.forEach(e=>{if(e.private==null)e.private=true;});delete st.journalBlur;H.store.save();}
+      const hidden=e=>!!e.private;
+      const privacy=(e,redraw)=>h('button.icon-btn.small',{title:hidden(e)?'Показать эту запись':'Скрыть эту запись','aria-label':hidden(e)?'Показать эту запись':'Скрыть эту запись',onclick:ev=>{ev.stopPropagation();e.private=!hidden(e);H.store.save();redraw();}},H.icon('eye',15));
       let q = '';
       const listHost = h('div.jr-list'), pageHost = h('div.jr-page-host');
-      let gridEl = null;
+      let gridEl = null, historyToggle=null;
+      function setHistoryHidden(value){st.journalSideHidden=value;H.store.save();if(gridEl)gridEl.classList.toggle('side-hidden',value);if(historyToggle){historyToggle.setAttribute('aria-expanded',String(!value));historyToggle.title=value?'Открыть историю записей':'Свернуть историю записей';H.clear(historyToggle);historyToggle.append(H.h('span','История'));} }
+
       // folders: «Личные» and «Ответы на вопросы» are automatic, own folders can be added
       const folderBar = h('div.jr-folders');
       const FX = () => { const x = ST().X; x.folders = x.folders || []; return x.folders; };
@@ -438,10 +440,10 @@
           const d = new Date(e.created); const iso = H.iso(d);
           if (iso !== lastDay) { lastDay = iso; listHost.appendChild(h('div.jr-dayhead', iso === t0 ? 'Сегодня' : iso === y0 ? 'Вчера' : H.cap(H.weekday(iso)) + ', ' + H.fmtLong(iso) + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''))); }
           const m = MOODS.find(x => x.id === e.mood);
-          listHost.appendChild(h('button.jr-item' + (e.id === cur ? '.on' : '') + (st.journalBlur ? '.blur' : ''), { onclick: () => { const prev = cur; cur = e.id; if (prev !== e.id) sweep(e.id); if (M) { render(); return; } drawList(); drawPage(); } },
+          listHost.appendChild(h('div.jr-item' + (e.id === cur ? '.on' : '') + (hidden(e) ? '.blur' : ''), {role:'button',tabindex:0,onkeydown:ev=>{if(ev.target===ev.currentTarget&&(ev.key==='Enter'||ev.key===' ')){ev.preventDefault();ev.currentTarget.click();}}, onclick: () => { const prev = cur; cur = e.id; if (prev !== e.id) sweep(e.id); if (M) { render(); return; } drawList(); drawPage(); } },
             m ? h('i.jr-mood-dot', { style: { background: m.c, boxShadow: `0 0 10px ${m.c}` } }) : h('i.jr-mood-dot.none'),
             h('div.jr-it-main', h('div.jr-it-t', e.title || (e.prompt ? e.prompt : preview(e.text).slice(0, 40)) || 'Новая запись'), h('div.jr-it-p', preview(e.text) || '…')),
-            h('span.jr-time', H.pad(d.getHours()) + ':' + H.pad(d.getMinutes()))));
+            privacy(e,drawList),h('span.jr-time', H.pad(d.getHours()) + ':' + H.pad(d.getMinutes()))));
         });
       };
       const drawPage = (fc) => {
@@ -491,19 +493,22 @@
         const past = others.length ? h('details.jr-past', h('summary', `Прошлые ответы на этот вопрос · ${others.length}`), others.map(o => h('button.jr-past-it', { onclick: () => { cur = o.id; sweep(o.id); render(); } }, h('span.faint', H.fmtLongY(H.iso(new Date(o.created)))), h('span', preview(o.text))))) : null;
         const moods = h('div.jr-moods', h('span.faint', 'Погода внутри:'), MOODS.map(m => h('button.jr-mood' + (e.mood === m.id ? '.on' : ''), { title: m.name, style: { '--mc': m.c }, onclick: ev => { e.mood = e.mood === m.id ? null : m.id; ev.currentTarget.parentNode.querySelectorAll('.jr-mood').forEach((b, i) => b.classList.toggle('on', MOODS[i].id === e.mood)); save(); } }, h('i'), h('span', m.name))));
         const paper = h('div.jr-paper', h('div.jr-paper-top', moods, tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, ed);
+        const finish=h('button.btn.primary.small.note-save',{title:'Сохранить и вернуться','aria-label':'Сохранить и вернуться',onclick:()=>{sync();e.updated=Date.now();H.store.persistNow();cur=null;go('home');}},H.icon('check',17),'Сохранить');
+        const privateView=()=>{[ed,title,...paper.querySelectorAll('.jr-q')].forEach(el=>{el.classList.toggle('private-text',hidden(e));el.setAttribute('aria-hidden',String(hidden(e)));});ed.contentEditable=String(!hidden(e));title.readOnly=hidden(e);};privateView();
+        const eye=privacy(e,()=>{privateView();drawList();});
         const del = h('button.icon-btn.small.jr-del', { title: 'Удалить запись', onclick: async () => {
           if (!await ui.confirm('Удалить эту запись? Её нельзя будет вернуть.', 'Удалить', true)) return;
           const s2 = H.store.get(); s2.journal = s2.journal.filter(x => x.id !== e.id); H.store.save(); cur = null; ui.toast('Запись удалена'); render();
         } }, H.icon('trash', 15));
-        const bar = h('div.jr-bar', meta, folderPick(e), h('div', { style: { flex: 1 } }), del,
+        const bar = h('div.jr-bar', finish,eye,meta, folderPick(e), h('div', { style: { flex: 1 } }), del,
           h('button.btn.small.jr-newbtn', { onclick: () => newEntry() }, H.icon('feather', 15), 'Новая'),
-          h('button.icon-btn.small.jr-histbtn', { title: 'Показать историю записей', onclick: () => { st.journalSideHidden = false; H.store.save(); gridEl && gridEl.classList.remove('side-hidden'); } }, H.icon('list', 15)));
+          h('button.icon-btn.small.jr-histbtn', { title: 'Показать историю записей', onclick: () => { setHistoryHidden(false); } }, H.icon('list', 15)));
         if (M) {   // phone: only the page — a back arrow and a quiet line of meta
           const back = h('button.jr-back', { onclick: () => { cur = null; sweep(null); render(); } }, H.icon('chevron', 18), h('span', 'Записи'));
-          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), folderPick(e), del), paper, h('div.jr-wmeta', meta));
+          pageHost.append(h('div.jr-wbar', back, h('div', { style: { flex: 1 } }), folderPick(e),eye,finish,del), paper, h('div.jr-wmeta', meta));
         } else pageHost.append(bar, paper);
         updMeta();
-        requestAnimationFrame(() => { if (fc) { ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } });
+        requestAnimationFrame(() => { if (fc && !hidden(e)) { ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } });
       };
       // search stays out of the way: a small magnifier, the field opens only when needed
       const search = h('input.inp.jr-search', { placeholder: 'Найти в записях', type: 'search' });
@@ -514,13 +519,14 @@
         h('div.row', { style: { gap: '8px', marginBottom: '10px' } },
           h('button.btn.primary.small', { style: { flex: 1 }, onclick: () => newEntry() }, H.icon('feather', 15), 'Новая запись'),
           sBtn,
-          M ? null : h('button.icon-btn.small.jr-collapse', { title: 'Свернуть историю', onclick: () => { st.journalSideHidden = true; H.store.save(); gridEl && gridEl.classList.add('side-hidden'); } }, H.icon('chevron', 15)),
-          h('button.icon-btn.small' + (st.journalBlur ? '.on' : ''), { title: 'Скрывать текст в списке (видно при наведении)', onclick: ev => { st.journalBlur = !st.journalBlur; ev.currentTarget.classList.toggle('on', st.journalBlur); H.store.save(); drawList(); } }, H.icon('eye', 15))),
+          M ? null : h('button.icon-btn.small.jr-collapse', { title: 'Свернуть историю', onclick: () => { setHistoryHidden(true); } }, H.icon('chevron', 15)),
+          null),
         sBox, folderBar, listHost);
       drawList(); if (!M || cur) drawPage(focus);
       if (M) return cur && J.find(x => x.id === cur) ? h('div.jr-writer', pageHost) : side;
       gridEl = h('div.jr-grid' + (st.journalSideHidden ? '.side-hidden' : ''), h('div.jr-main', pageHost), side);
-      return gridEl;
+      historyToggle=h('button.jr-history-toggle',{type:'button','aria-label':'История записей','aria-expanded':String(!st.journalSideHidden),title:st.journalSideHidden?'Открыть историю записей':'Свернуть историю записей',onclick:()=>setHistoryHidden(!st.journalSideHidden)},h('span','История'));
+      return h('div.jr-history-shell',h('div.jr-history-control',historyToggle),gridEl);
     }
 
     // ---------- PROMPTS library ----------
@@ -605,7 +611,7 @@
           const ta=h('textarea.ab-text',{placeholder:'Можно коротко или длинно — как хочется.'});ta.value=(X.about[it.id]||{}).text||'';
           const saved=h('span.faint',{role:'status'},ta.value?'Ответ сохранён':'Сохраняется автоматически');
           const save=()=>{if((X.about[it.id]||{}).text===ta.value||(!X.about[it.id]&&!ta.value.trim()))return;X.about[it.id]={text:ta.value,updated:Date.now()};H.store.save();saved.textContent='Ответ сохранён';};
-          const next=h('button.btn.primary',{disabled:!ta.value.trim(),onclick:()=>{save();if(editing){mode='portrait';draw();}else deal();}},editing?'Сохранить и вернуться':'Сохранить и вытянуть ещё');
+          const next=h('button.btn.primary',{disabled:!ta.value.trim(),onclick:()=>{save();if(editing){mode='portrait';draw();}else deal();}},H.icon('check',16),editing?'Сохранить и вернуться':'Сохранить и вытянуть ещё');
           ta.addEventListener('input',()=>{save();next.disabled=!ta.value.trim();});
           wrap.append(h('div.ab-ask.ab-random-card',
             h('div.row',h('button.btn.small.ghost',{onclick:()=>{save();mode='grid';draw();}},'‹ Все темы'),h('span.faint',theme.name)),
@@ -613,7 +619,7 @@
             !editing&&(X.about[it.id]||{}).text?h('p.faint','Ты уже отвечала на этот вопрос. Можно дополнить ответ.'):null,
             ta,saved,h('div.ab-card-actions',next,
               !editing?h('button.btn.ghost',{onclick:()=>{save();deal();}},H.icon('dice',15),'Другой вопрос'):null,
-              h('button.btn.ghost',{onclick:()=>{save();mode='grid';draw();}},'На сегодня хватит'))));
+              h('button.btn.ghost',{onclick:()=>{save();H.store.persistNow();go('home');}},H.icon('check',16),'Сохранить и выйти'))));
         }else{
           const blocks=themes.map(g=>({g,items:g.items.filter(q=>X.about[q.id]&&(X.about[q.id].text||'').trim())})).filter(b=>b.items.length);
           wrap.append(h('div.portrait',h('button.btn.small.ghost',{onclick:()=>{mode='grid';draw();}},'‹ К темам'),h('div.pt-hero',h('h2','Мой портрет'),h('p.muted',blocks.length?'Твои ответы по темам. Любой можно дополнить.':'Ответь на один вопрос — здесь появится начало твоего портрета.')),
@@ -652,7 +658,7 @@
           ta,
           h('div.fsection-title', 'Когда открыть'),
           h('div.row.wrapr', { style: { gap: '8px' } }, presets.map(([d, n]) => ui.chip(n, d === 30, (e, c) => { l.open = H.addDays(H.today(), d); dateInp.value = l.open; c.parentNode.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); })), dateInp)),
-          { wide: true, actions: [h('button.btn.primary', { onclick: () => { l.text = ta.value; if (!l.text.trim()) return ui.toast('Письмо пустое', 'ℹ'); if (l.open <= H.today()) return ui.toast('Выбери дату в будущем', 'ℹ'); X.letters.push(l); H.store.save(); md.close(); ui.toast('Письмо запечатано до ' + H.fmtLongY(l.open), '✉'); draw(); } }, 'Запечатать')] });
+          { wide: true, actions: [h('button.btn.primary', { onclick: () => { l.text = ta.value; if (!l.text.trim()) return ui.toast('Письмо пустое', 'ℹ'); if (l.open <= H.today()) return ui.toast('Выбери дату в будущем', 'ℹ'); X.letters.push(l); H.store.save(); md.close(); ui.toast('Письмо запечатано до ' + H.fmtLongY(l.open), '✉'); draw(); } }, H.icon('check',16),'Запечатать')] });
         setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 100);
       };
       const openLetter = l => {
@@ -758,7 +764,7 @@
     function vent() {
       const starter = pick(D().vent, Math.floor(Math.random() * 1000));
       const ta = h('textarea.jr-text.vent-ta', { placeholder: 'Пиши всё, что хочется сказать. Это никто не увидит и это не сохранится.' });
-      const paper = h('div.jr-paper.vent-paper', h('div.jr-date', 'Выговориться'), h('div.jr-q', starter ? '«' + starter + '»' : null), ta);
+      const hint=h('div.jr-q.vent-hint',starter?'«'+starter+'»':null);const paper=h('div.jr-paper.vent-paper',h('div.jr-date','Выговориться'),hint,ta);const dismiss=()=>hint.classList.add('dismissed');ta.addEventListener('input',dismiss,{once:true});setTimeout(dismiss,3000);
       const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.max(380, ta.scrollHeight) + 'px'; };
       ta.addEventListener('input', grow);
       const btn = (kind, ic, name) => h('button.btn.rel-btn.' + kind, { onclick: async () => { if (!ta.value.trim()) return ui.toast('Сначала напиши что-нибудь', 'ℹ'); await release(paper, kind, null, ta.value); ta.value = ''; paper.style.visibility = ''; grow(); ui.toast('Отпущено. Ты молодец, что выговорилась', '🕊'); } }, H.icon(ic, 16), name);

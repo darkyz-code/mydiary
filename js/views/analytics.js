@@ -51,7 +51,7 @@
       const pickedRow = h('div.chips', picked.map(id => ui.chip((allNames[id] || id) + '  ✕', true, () => { picked = picked.filter(x => x !== id); persist(); render(); })),
         h('button.chip.add', { onclick: () => { pickerOpen = !pickerOpen; render(); } }, pickerOpen ? 'Свернуть' : '+ Добавить показатель'));
       host.appendChild(h('div.glass.card',
-        h('div.row.wrapr', { style: { gap: '16px', alignItems: 'flex-start' } },
+        h('div.analytics-controls', { style: { gap: '16px', alignItems: 'flex-start' } },
           h('div', h('div.fsection-title', 'Период'), ui.segmented([{ id: 14, name: '14 дней', toggleOff: false }, { id: 30, name: '30 дней', toggleOff: false }, { id: 90, name: '90 дней', toggleOff: false }, { id: 'all', name: 'Всё время', toggleOff: false }], period, v => { period = v; render(); })),
           h('div', { style: { flex: 1 } }, h('div.fsection-title', `На графике (до 5)`), pickedRow)),
         pickerOpen ? h('div.metric-picker', GROUPS.map(g => h('div.mp-group', h('div.mp-title', g.name),

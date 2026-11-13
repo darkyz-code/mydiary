@@ -5,8 +5,9 @@
   H.views.day = function (root, params) {
     const date = (params && params.date) || H.today();
     const S = H.store.get();
-    const R = () => S.days[date];                 // read (may be null)
-    const W = () => H.store.day(date, true);      // write (creates the day)
+    const period = params?.period || H.activePeriod || 'day'; H.activePeriod=period;
+    const R = () => H.periods.read(S.days[date],period);                 // read (may be null)
+    const W = () => H.periods.write(H.store.day(date, true),period);      // write (creates the day)
     const isToday = date === H.today();
     const stamps = {};
     let blockIndex = 0;
@@ -15,6 +16,8 @@
     const saveInd = h('span.save-ind', h('span.sdot'), 'Сохранено');
     const refreshSideLater = H.debounce(() => refreshSide(), 120);
     function changed(block) {
+      H.periods.touch(H.store.day(date,true),period,block);
+      if(block==='vitals'){const all=S.days[date];S.profile.weightLog=(S.profile.weightLog||[]).filter(x=>x.date!==date);if(all.vitals.weight!=null)S.profile.weightLog.push({date,kg:all.vitals.weight});}
       H.store.touch(date, block);
       H.game.onDayEdit(date, block);
       const st = stamps[block];
@@ -38,41 +41,18 @@
         h('div.block-head', {
           onclick: collapsible ? () => { const c = !sec.classList.contains('collapsed'); sec.classList.toggle('collapsed', c); coll[id] = c; H.store.save(); } : null,
         }, H.gicon(meta.ic, 18), h('h3', meta.name), st,
-          d && d.edited && d.edited[id] ? h('button.reset-btn', { title: 'Сбросить данные раздела за этот день', onclick: e => { e.stopPropagation(); resetBlock(id, meta.name); } }, H.icon('reset', 15)) : null,
+          d && d.edited && d.edited[id] ? h('button.reset-btn', { title: 'Сбросить раздел: '+(period==='day'?'день':'вечер'), onclick: e => { e.stopPropagation(); resetBlock(id, meta.name); } }, H.icon('reset', 15)) : null,
           collapsible ? h('span.chev', H.icon('chevron', 18)) : null),
         body);
       return sec;
     }
-    async function resetBlock(id, name) {
-      if (!await ui.confirm(`Сбросить всё, что отмечено в разделе «${name}» за этот день?`, 'Сбросить')) return;
-      const d = R(); if (!d) return;
-      const clear = {
-        general: () => d.general = {}, emotions: () => d.emotions = {}, physical: () => d.symptoms = {}, sleep: () => d.sleep = {},
-        cycle: () => d.cycle = {}, meds: () => { d.meds = {}; if (d.lifestyle) delete d.lifestyle.teaNearIron; },
-        lifestyle: () => { const t = d.lifestyle && d.lifestyle.teaNearIron; d.lifestyle = t ? { teaNearIron: t } : {}; },
-        vitals: () => { d.vitals = {}; S.profile.weightLog = (S.profile.weightLog || []).filter(x => x.date !== date); },
-        photo: () => { (d.photos || []).forEach(p => H.photos.remove(p.id)); d.photos = []; },
-        complaints: () => d.complaints = '', thoughts: () => d.thoughts = '', activities: () => { d.activities = []; d.activitiesText = ''; },
-      };
-      (clear[id] || (() => {}))();
-      delete d.edited[id];
-      d.updatedAt = Date.now();
-      H.store.save();
-      const view = root.closest('.view'); const top = view ? view.scrollTop : 0;
-      H.go('day', { date });
-      requestAnimationFrame(() => { const v = document.querySelector('.view'); if (v) { v.classList.remove('enter'); v.scrollTop = top; } });
-      ui.toast('Раздел очищен');
+    async function resetBlock(id,name){
+      if(!await ui.confirm('Сбросить раздел «'+name+'» за '+(period==='day'?'день':'вечер')+'? Отметки другой части дня сохранятся.','Сбросить'))return;
+      H.periods.clear(H.store.day(date,true),period,id);H.store.save();H.go('day',{date,period});ui.toast('Раздел очищен');
     }
-    async function clearDay() {
-      if (!await ui.confirm(`Очистить весь день — ${H.fmtLong(date)}? Удалятся все отметки, заметки, фото и оценка дня, как будто ты ничего не заполняла. Отменить это нельзя.`, 'Очистить день', true)) return;
-      const d = R(); if (!d) return;
-      (d.photos || []).forEach(p => H.photos.remove(p.id));
-      delete S.days[date];
-      if (H.syncForget) H.syncForget(date);   // so the other devices drop this day too
-      S.profile.weightLog = (S.profile.weightLog || []).filter(x => x.date !== date);
-      H.store.save();
-      H.go('day', { date });
-      ui.toast('День очищен');
+    async function clearDay(){
+      if(!await ui.confirm('Сбросить все отметки за '+(period==='day'?'день':'вечер')+'? Отметки другой части дня сохранятся.','Сбросить',true))return;
+      H.periods.clear(H.store.day(date,true),period);H.store.save();H.go('day',{date,period});
     }
     function srow(name, control, extra) { return h('div.srow', extra || {}, h('div.s-name', name), control); }
 
@@ -90,7 +70,7 @@
           saveInd, updated)),
       h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, 1) }), title: 'Следующий день' }, '›'),
       h('div.grow', { style: { flex: 1 } }),
-      R() && Object.keys(R().edited || {}).length ? h('button.btn.ghost.clear-day', { onclick: clearDay, title: 'Удалить все отметки и оценку этого дня' }, H.icon('reset', 16), 'Очистить день') : null,
+      R() && Object.keys(R().edited || {}).length ? h('button.btn.ghost.clear-day', { onclick: clearDay, title: 'Сбросить '+(period==='day'?'день':'вечер') }, H.icon('reset', 16), period==='day'?'Сбросить день':'Сбросить вечер') : null,
       h('button.btn', { onclick: () => H.go('calendar', { month: date.slice(0, 7) }) }, H.icon('calendar', 17), 'Календарь'),
       h('button.btn.primary', { onclick: rateDay }, H.icon('sparkle', 17), 'Оценить день'));
 
@@ -200,7 +180,7 @@
             S.settings.customEmotions = (S.settings.customEmotions || []).concat(ce);
             H.store.syncCustomEmotions();
             const dd = W(); dd.emotions[ce.id] = { score: 5, note: '', noteOpen: false };
-            changed('emotions'); m.close(); H.go('day', { date, focus: 'emotions' });
+            changed('emotions'); m.close(); H.go('day', { date, period, focus: 'emotions' });
           },
         }, 'Добавить')],
       });
@@ -257,7 +237,7 @@
 
     // general
     if (!hidden.includes('general')) {
-      blocks.push(block('general', H.dayCheckin(R, W, changed)));
+      blocks.push(block('general', H.dayCheckin(R, W, changed,period)));
     }
 
     // emotions
@@ -339,7 +319,7 @@
         h('div.sleep-row.two', ui.field('Уснула днём в', ui.input(sv('napStart') || '', setS('napStart'), { type: 'time' })), ui.field('Проснулась в', ui.input(sv('napEnd') || '', setS('napEnd'), { type: 'time' }))),
         srow('Качество дневного сна', ui.slider({ value: sv('napQuality'), mode: 'good', onChange: setS('napQuality') }))));
       const dreamSel = new Set(sv('dreams') || []);
-      const dreamText = h('div.note-area' + (sv('dreamText') ? '.open' : ''), h('div.note-wrap', ui.textarea(sv('dreamText'), setS('dreamText'), 'Что снилось? Можно коротко — образы, ощущения, сюжет.', 3)));
+      const dreamInput=ui.textarea(sv('dreamText'),setS('dreamText'),'Что снилось? Можно коротко — образы, ощущения, сюжет.',3);const dreamKey=date+'|'+period;const hiddenDream=()=>S.settings.dreamPrivacy?.[dreamKey]??!!S.settings.dreamBlur;const paintDream=()=>{dreamInput.classList.toggle('private-text',hiddenDream());dreamInput.readOnly=hiddenDream();dreamInput.setAttribute('aria-hidden',String(hiddenDream()));};paintDream();const dreamEye=h('button.icon-btn.small',{title:'Показать или скрыть этот сон',onclick:()=>{S.settings.dreamPrivacy=S.settings.dreamPrivacy||{};S.settings.dreamPrivacy[dreamKey]=!hiddenDream();H.store.save();paintDream();}},H.icon('eye',16));const dreamText=h('div.note-area'+(sv('dreamText')?'.open':''),h('div.note-wrap',dreamEye,dreamInput));
       blocks.push(block('sleep',
         h('div.sleep-row', ui.field('Уснула в', ui.input(sv('bed') || '', setS('bed'), { type: 'time' })), ui.field('Проснулась в', ui.input(sv('wake') || '', setS('wake'), { type: 'time' })), total),
         bar,
@@ -518,7 +498,7 @@
     const reportHost = h('div');
     function renderSavedReport() {
       H.clear(reportHost);
-      const d = R();
+      const d = S.days[date];
       if (!d || !d.report) return;
       reportHost.appendChild(h('section.day-report',
         h('div.block-head', H.gicon('sparkle', 18), h('h3', 'Отчёт дня'), h('span.edited', 'составлен ' + H.fmtStamp(d.report.generatedAt))),
@@ -527,10 +507,10 @@
     }
 
     function rateDay() {
-      const d = R();
+      const d = S.days[date];
       if (!d || !Object.keys(d.edited || {}).length) { ui.toast('Сначала заполни хотя бы один раздел дня', 'ℹ'); return; }
       const r = H.report.dayReport(date);
-      W().report = { generatedAt: Date.now(), summary: r.summary, index: r.index };
+      H.store.day(date,true).report = { generatedAt: Date.now(), summary: r.summary, index: r.index };
       H.store.save();
       H.game.award(`${date}:report`, 15, 'отчёт дня');
       renderSavedReport();
@@ -656,7 +636,7 @@
         r.insights.length ? [h('div.rep-h', H.gicon('sparkle', 16, 'sm'), h('h4', 'Выводы')), h('div.ins-grid', r.insights.map(insightCard))] : null,
         h('div.rep-h', H.gicon('heart', 16, 'sm'), h('h4', 'На завтра')),
         h('div.rep-advice', r.advice.map(a => h('div.adv', a))),
-        r.sections.length ? h('details.rep-facts', h('summary', 'Все отметки дня'), r.sections.map(sec => h('div.fact', h('b', sec.title), h('span', sec.items.join(' · '))))) : null,
+        h('details.rep-facts', h('summary', 'Все отметки дня'), h('div.period-facts',H.periods.facts(S.days[date]).map(sec=>h('section',h('h4',sec.title),sec.items.length?h('ul',sec.items.map(item=>h('li',item))):h('p.faint','Не заполнено'))))),
         h('div.disclaimer', 'Итог составлен автоматически по твоим записям, без интернета. Это не диагноз и не замена консультации врача.'));
       ui.modal('Итог дня', body, { wide: true, cls: 'report-modal', actions: [h('button.btn.primary', { onclick: e => e.target.closest('.modal-back').querySelector('.modal-x').click() }, 'Готово')] });
     }
@@ -670,6 +650,6 @@
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('focus-flash'); setTimeout(() => el.classList.remove('focus-flash'), 1800);
     }, 450);
-    root.appendChild(h('div.wrap', head, h('div.day-grid', sideHost, h('div.day-blocks', blocks, reportHost))));
+    root.appendChild(h('div.wrap', head, H.periods.tabs(period,p=>H.go('day',{date,period:p})), h('div.day-grid', sideHost, h('div.day-blocks', blocks, reportHost))));
   };
 })(window.H);
