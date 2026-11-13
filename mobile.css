@@ -347,11 +347,26 @@ html.is-mobile .jr-folders::-webkit-scrollbar { display: none; }
 html.is-mobile .jr-fchip { flex: none; font-size: .8rem; padding: 6px 12px; }
 html.is-mobile .jr-paper-top .jr-tools { margin: 0 auto 0 0; }
 
-/* The balance must live outside the hidden desktop titlebar. */
-html.is-mobile #app { padding-top: calc(var(--safe-t) + 54px); }
-#mobile-topbar { display: none; }
-html.is-mobile #mobile-topbar { display: flex; position: fixed; inset: 0 0 auto; height: calc(var(--safe-t) + 54px); padding: var(--safe-t) 16px 0; align-items: center; justify-content: space-between; z-index: 140; background: var(--surface-strong); border-bottom: 1px solid var(--border); }
-.mobile-brand { font-size: 14px; font-weight: 600; letter-spacing: .02em; color: var(--text-2); }
-html.is-mobile #mobile-topbar #gem-badge { position: static; height: 36px; min-width: 76px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+/* Only the balance floats. The initial clearance scrolls with the page. */
+html.is-mobile #app { padding-top: 0; }
+html.is-mobile .view { padding-top: calc(var(--safe-t) + 68px) !important; }
+html.is-mobile #gem-badge {
+  position: fixed; top: calc(var(--safe-t) + 10px); right: 12px; z-index: 140;
+  height: 36px; min-width: 76px; font-variant-numeric: tabular-nums;
+  background: rgba(34,36,44,.65);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
 
-html.is-mobile #mobile-topbar{background:transparent;border:0;justify-content:flex-end;pointer-events:none}html.is-mobile #mobile-topbar #gem-badge{pointer-events:auto;background:rgba(34,36,44,.65);backdrop-filter:blur(12px)}
+html.is-mobile .font-size-row { flex-direction:column; align-items:stretch; gap:12px; }
+html.is-mobile .font-size-row .segmented { display:flex; width:100%; min-width:0; overflow:visible; }
+html.is-mobile .font-size-row .seg { flex:1 1 0; min-width:0; padding:9px 5px; text-align:center; }
+html.is-mobile .day-head .day-summary-action {flex:1 1 auto}
+.reminder-options {display:grid;gap:20px;margin-top:20px}
+.reminder-options .hr {margin:0}
+.reminder-options .field {margin:0;gap:10px}
+.reminder-options .field-label {font-size:.86rem;line-height:1.5;letter-spacing:normal;text-transform:none;color:var(--text-2)}
+.reminder-options .row {align-items:stretch;gap:12px !important;margin-top:0 !important}
+.reminder-options .btn {font-size:.86rem;line-height:1.5;white-space:normal;text-align:left}
+
+html.is-mobile.pin-side .view {padding-left:14px !important}
+html.is-mobile .reminder-options .field-label {font-size:.86rem;line-height:1.5;letter-spacing:normal;text-transform:none;color:var(--text-2)}
