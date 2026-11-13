@@ -370,3 +370,16 @@ html.is-mobile .day-head .day-summary-action {flex:1 1 auto}
 
 html.is-mobile.pin-side .view {padding-left:14px !important}
 html.is-mobile .reminder-options .field-label {font-size:.86rem;line-height:1.5;letter-spacing:normal;text-transform:none;color:var(--text-2)}
+
+/* Compact page start; the balance belongs to the scrollable page. */
+html.is-mobile .view {padding-top:calc(var(--safe-t) + 46px) !important}
+html.is-mobile #gem-badge {position:absolute;top:calc(var(--safe-t) + 6px);right:14px;height:32px;min-width:70px;z-index:5}
+html.is-mobile .day-report-host:empty {display:none}
+html.is-mobile .day-footer {margin-top:0;gap:10px}
+html.is-mobile .day-footer .clear-day {background:transparent;border-color:currentColor;color:var(--text-3);box-shadow:none;opacity:.62;font-weight:450;filter:none}
+html.is-mobile .day-footer .clear-day::before {display:none}
+html.is-mobile .day-footer .clear-day:focus-visible,html.is-mobile .day-footer .clear-day:hover {opacity:.9}
+html.is-mobile .reminder-options .segmented {width:max-content;max-width:100%;justify-self:start;overflow:visible}
+@media(max-width:360px){html.is-mobile .reminder-options .seg {padding-left:9px;padding-right:9px}}
+html.is-mobile .mini > div {min-width:0;overflow-wrap:anywhere}
+html.is-mobile .ring-wrap {flex-shrink:0} html.is-mobile .ring-center {gap:3px} html.is-mobile .ring-val {line-height:1.1} html.is-mobile .ring-lbl {line-height:1.2} html.is-mobile .day-left > .card > div:last-child {min-width:0}
