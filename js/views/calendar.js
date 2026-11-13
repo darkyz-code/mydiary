@@ -107,8 +107,13 @@
       tipEl = h('div.cal-tip.glass', lines);
       document.body.appendChild(tipEl);
       const r = e.currentTarget.getBoundingClientRect();
-      let x = r.right + 10; if (x + 250 > innerWidth) x = r.left - 250;
-      tipEl.style.left = x + 'px'; tipEl.style.top = Math.min(r.top, innerHeight - 160) + 'px';
+      tipEl.style.maxWidth = Math.max(0,innerWidth-24)+'px';
+      tipEl.style.maxHeight = Math.max(0,innerHeight-24)+'px';
+      tipEl.style.overflowY = 'auto';
+      const box = tipEl.getBoundingClientRect();
+      let x = r.right + 10; if (x + box.width > innerWidth-12) x = r.left-box.width-10;
+      tipEl.style.left = H.clamp(x,12,Math.max(12,innerWidth-box.width-12))+'px';
+      tipEl.style.top = H.clamp(r.top,12,Math.max(12,innerHeight-box.height-12))+'px';
     }
     function hideTip() { if (tipEl) { tipEl.remove(); tipEl = null; } }
 

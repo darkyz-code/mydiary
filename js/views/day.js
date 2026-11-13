@@ -41,7 +41,7 @@
         h('div.block-head', {
           onclick: collapsible ? () => { const c = !sec.classList.contains('collapsed'); sec.classList.toggle('collapsed', c); coll[id] = c; H.store.save(); } : null,
         }, H.gicon(meta.ic, 18), h('h3', meta.name), st,
-          d && d.edited && d.edited[id] ? h('button.reset-btn', { title: 'Сбросить раздел: '+(period==='day'?'день':'вечер'), onclick: e => { e.stopPropagation(); resetBlock(id, meta.name); } }, H.icon('reset', 15)) : null,
+          h('button.reset-btn', { title: 'Сбросить раздел: '+(period==='day'?'день':'вечер'), onclick: e => { e.stopPropagation(); resetBlock(id, meta.name); } }, H.icon('reset', 15)),
           collapsible ? h('span.chev', H.icon('chevron', 18)) : null),
         body);
       return sec;
@@ -70,9 +70,8 @@
           saveInd, updated)),
       h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, 1) }), title: 'Следующий день' }, '›'),
       h('div.grow', { style: { flex: 1 } }),
-      R() && Object.keys(R().edited || {}).length ? h('button.btn.ghost.clear-day', { onclick: clearDay, title: 'Сбросить '+(period==='day'?'день':'вечер') }, H.icon('reset', 16), period==='day'?'Сбросить день':'Сбросить вечер') : null,
       h('button.btn', { onclick: () => H.go('calendar', { month: date.slice(0, 7) }) }, H.icon('calendar', 17), 'Календарь'),
-      h('button.btn.primary', { onclick: rateDay }, H.icon('sparkle', 17), 'Оценить день'));
+      h('button.day-summary-action.sheen', { onclick: rateDay }, h('span.summary-glint'), H.icon('sparkle', 17), 'Оценить день'));
 
     // ---------- left column: silhouette + ring ----------
     const sideHost = h('div.day-left');
@@ -650,6 +649,6 @@
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('focus-flash'); setTimeout(() => el.classList.remove('focus-flash'), 1800);
     }, 450);
-    root.appendChild(h('div.wrap', head, H.periods.tabs(period,p=>H.go('day',{date,period:p})), h('div.day-grid', sideHost, h('div.day-blocks', blocks, reportHost))));
+    root.appendChild(h('div.wrap', head, H.periods.tabs(period,p=>H.go('day',{date,period:p})), h('div.day-grid', sideHost, h('div.day-blocks', blocks, reportHost, h('div.day-footer', h('button.day-summary-action.sheen', {onclick:rateDay}, h('span.summary-glint'), H.icon('sparkle',17), 'Итог дня'), h('button.btn.ghost.clear-day', {onclick:clearDay}, H.icon('reset',16), period==='day'?'Сбросить день':'Сбросить вечер'))))));
   };
 })(window.H);

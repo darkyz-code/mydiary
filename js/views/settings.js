@@ -47,10 +47,10 @@
       h('div.fsection', h('div.fsection-title', 'Цвет акцента'), sw),
       h('div.fsection.sil-section', h('div.fsection-title', 'Силуэт на экране дня'), sil),
       h('div.set-row', h('div', h('div.sr-t', 'Сила эффекта стекла'), h('div.sr-d', 'Размытие и прозрачность панелей')), ui.slider({ value: Math.round(st.glass / 10), min: 0, max: 10, mode: 'neutral', allowClear: false, onChange: v => { st.glass = v * 10; apply(); } })),
-      h('div.set-row', h('div', h('div.sr-t', 'Размер текста')), ui.segmented([{ id: 0.92, name: 'Мельче' }, { id: 1, name: 'Обычный' }, { id: 1.08, name: 'Крупнее' }, { id: 1.16, name: 'Крупный' }].map(x => ({ ...x, toggleOff: false })), st.fontScale, v => { st.fontScale = v; apply(); })),
+      h('div.set-row.font-size-row', h('div', h('div.sr-t', 'Размер текста')), ui.segmented([{ id: 0.92, name: 'Мелкий' }, { id: 1, name: 'Обычный' }, { id: 1.16, name: 'Крупный' }].map(x => ({ ...x, toggleOff: false })), st.fontScale > 1 ? 1.16 : st.fontScale < 1 ? .92 : 1, v => { st.fontScale = v; apply(); })),
       h('div.set-row', h('div', h('div.sr-t', 'Анимации'), h('div.sr-d', 'Плавные переходы, всплывающие пузырьки и отклик кнопок')), ui.toggle(st.animations, v => { st.animations = v; apply(); })),
       h('div.set-row', h('div', h('div.sr-t', 'Звуки в разделе «Отдых»')), ui.toggle(st.gameSound !== false, v => { st.gameSound = v; H.store.save(); })),
-      h('div.set-row', h('div', h('div.sr-t', 'Закрепить боковую панель'), h('div.sr-d', 'Меню разделов будет всегда видно слева')), ui.toggle(st.pinSidebar, v => { st.pinSidebar = v; apply(); }))));
+      !document.documentElement.classList.contains('is-mobile') && h('div.set-row', h('div', h('div.sr-t', 'Закрепить боковую панель'), h('div.sr-d', 'Меню разделов будет всегда видно слева')), ui.toggle(st.pinSidebar, v => { st.pinSidebar = v; apply(); }))));
 
     // diary blocks
     const blocks = h('div');
@@ -101,7 +101,7 @@
         H.syncCard ? H.syncCard() : null,
         H.remindCard ? H.remindCard() : null,
         h('div.glass.card', h('div.card-title', H.gicon('heart', 17, 'sm'), h('h3', 'О приложении')),
-          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.11.1. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
+          h('p.muted', { style: { fontSize: '.88rem', margin: 0, userSelect: 'none' }, onclick: () => { taps++; clearTimeout(tapT); tapT = setTimeout(() => taps = 0, 1500); if (taps >= 5) { taps = 0; st.devUnlocked = true; H.store.save(); ui.toast('Режим разработчика открыт', '⚙'); H.go('settings'); } } }, 'My Diary, версия 1.11.2. Записи хранятся на устройстве; интернет нужен только для синхронизации и напоминаний. Советы и отчёты составляются автоматически по твоим записям и не заменяют консультацию врача.'),
           st.devUnlocked ? h('div.dev-box',
             h('div.fsection-title', { style: { marginTop: '14px' } }, 'Режим разработчика'),
             ui.toggle(!!st.devMode, v => { st.devMode = v; H.store.save(); }, 'Бесплатные кейсы без ограничений'),

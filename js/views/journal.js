@@ -240,7 +240,7 @@
       const privacyKey=(date,period='day')=>date+'|'+period;
       if(st.dreamBlur){collect().forEach(d=>{const key=privacyKey(d.date,d._period);if(st.dreamPrivacy[key]==null)st.dreamPrivacy[key]=true;});delete st.dreamBlur;H.store.save();}
       const isHidden=(date,period='day')=>st.dreamPrivacy[privacyKey(date,period)]??!!st.dreamBlur;
-      function syncPrivacy(){document.querySelectorAll('[data-dream-key]').forEach(el=>{const key=el.dataset.dreamKey,hidden=st.dreamPrivacy[key]??!!st.dreamBlur;el.classList.toggle('private-text',hidden);if(el.matches('textarea')){el.readOnly=hidden;el.setAttribute('aria-hidden',String(hidden));}});}
+      function syncPrivacy(){document.querySelectorAll('[data-dream-key]').forEach(el=>{const key=el.dataset.dreamKey,hidden=st.dreamPrivacy[key]??!!st.dreamBlur;el.classList.toggle('private-text',hidden);el.setAttribute('aria-hidden',String(hidden));if(el.matches('textarea'))el.readOnly=hidden;});}
       function privacyButton(date,period='day'){const b=h('button.icon-btn.small',{title:isHidden(date,period)?'Показать этот сон':'Скрыть этот сон','aria-label':isHidden(date,period)?'Показать этот сон':'Скрыть этот сон',onclick:()=>{const key=privacyKey(date,period);st.dreamPrivacy[key]=!isHidden(date,period);H.store.save();b.title=st.dreamPrivacy[key]?'Показать этот сон':'Скрыть этот сон';b.setAttribute('aria-label',b.title);syncPrivacy();}},H.icon('eye',16));return b;}
       const feed = h('div.dr-feed'), statsHost = h('div'), chips = h('div.dr-chips');
       const sBox = h('div.jr-sbox.dr-sbox');
@@ -295,7 +295,7 @@
       function card(d) {
         const s = d.sleep, types = (s.dreams || []).filter(x => x !== 'none'), txt = (s.dreamText || '').trim();
         const mins = H.metrics.sleepMinutes(d);
-        const body = txt ? h('div.dr-text', txt) : h('div.dr-text.muted', 'без описания');body.dataset.dreamKey=privacyKey(d.date,d._period);body.classList.toggle('private-text',isHidden(d.date,d._period));
+        const body = txt ? h('div.dr-text', txt) : h('div.dr-text.muted', 'без описания');body.dataset.dreamKey=privacyKey(d.date,d._period);body.classList.toggle('private-text',isHidden(d.date,d._period));body.setAttribute('aria-hidden',String(isHidden(d.date,d._period)));
         if (txt.length > 260) { body.classList.add('clamp'); body.onclick = () => body.classList.toggle('clamp'); }
         return h('div.glass.dr-card',
           h('div.dr-head',
