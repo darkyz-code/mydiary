@@ -1948,6 +1948,12 @@ body.closing-sync::after { content: 'Сохраняю изменения…'; po
 .jr-tb { font-weight: 800; font-size: .92rem; font-style: normal; } .jr-ti { font-style: italic; font-weight: 600; font-size: .92rem; font-family: Georgia, serif; }
 .jr-tool.on .jr-tb, .jr-tool.on .jr-ti { color: var(--text); }
 .jr-paper-top { justify-content: flex-end; }
+.jr-paper-adjustable .jr-controls-toggle {display:flex;align-items:center;justify-content:center;width:40px;height:32px;padding:0;margin:-16px -12px 2px auto;border:0;border-radius:18px;background:transparent;color:var(--text);opacity:.35;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .2s}
+.jr-controls-toggle svg {width:14px;height:14px;transition:transform .2s}
+.jr-controls-toggle[aria-expanded="false"] svg {transform:rotate(180deg)}
+.jr-paper-adjustable .jr-controls-toggle:focus-visible {outline:1px solid rgba(var(--ov),.4);outline-offset:1px;opacity:.8}
+@media(hover:hover){.jr-paper-adjustable .jr-controls-toggle:hover {opacity:.7}}
+.jr-paper-adjustable .jr-paper-top[hidden] {display:none!important}
 .jr-sbox { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .4s var(--ease), margin .4s; margin-bottom: 0; }
 .jr-sbox > .inp { overflow: hidden; min-height: 0; padding-top: 0; padding-bottom: 0; border-width: 0; opacity: 0; transition: opacity .3s, padding .3s; }
 .jr-sbox.open { grid-template-rows: 1fr; margin-bottom: 10px; }
