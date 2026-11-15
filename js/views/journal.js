@@ -493,7 +493,21 @@
         const others = e.prompt ? J.filter(x => x.prompt === e.prompt && x.id !== e.id && (x.text || '').trim()).sort((a, b) => b.created - a.created) : [];
         const past = others.length ? h('details.jr-past', h('summary', `Прошлые ответы на этот вопрос · ${others.length}`), others.map(o => h('button.jr-past-it', { onclick: () => { cur = o.id; sweep(o.id); render(); } }, h('span.faint', H.fmtLongY(H.iso(new Date(o.created)))), h('span', preview(o.text))))) : null;
         const moods = h('div.jr-moods', h('span.faint', 'Погода внутри:'), MOODS.map(m => h('button.jr-mood' + (e.mood === m.id ? '.on' : ''), { title: m.name, style: { '--mc': m.c }, onclick: ev => { e.mood = e.mood === m.id ? null : m.id; ev.currentTarget.parentNode.querySelectorAll('.jr-mood').forEach((b, i) => b.classList.toggle('on', MOODS[i].id === e.mood)); save(); } }, h('i'), h('span', m.name))));
-        const paper = h('div.jr-paper', h('div.jr-paper-top', moods, tools), e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, ed);
+        const controls = h('div.jr-paper-top', {id:'jr-editor-controls'}, moods, tools);
+        const controlsToggle = h('button.jr-controls-toggle', {type:'button','aria-controls':'jr-editor-controls',onclick:()=>{
+          st.journalToolsHidden = !st.journalToolsHidden;
+          paintControls();
+          H.store.save();
+        }}, ICON('<path d="m7 14 5-5 5 5"/>'));
+        const paintControls = () => {
+          controls.hidden = !!st.journalToolsHidden;
+          controlsToggle.setAttribute('aria-expanded',String(!controls.hidden));
+          const label = controls.hidden ? 'Показать погоду и оформление' : 'Скрыть погоду и оформление';
+          controlsToggle.setAttribute('aria-label',label);
+          controlsToggle.title = label;
+        };
+        paintControls();
+        const paper = h('div.jr-paper.jr-paper-adjustable', controlsToggle, controls, e.prompt ? h('div.jr-q', '«' + e.prompt + '»') : null, past, title, ed);
         const finish=h('button.btn.primary.small.note-save',{title:'Сохранить и вернуться','aria-label':'Сохранить и вернуться',onclick:()=>{sync();e.updated=Date.now();H.store.persistNow();cur=null;go('home');}},'Сохранить');
         const privateView=()=>{[ed,title,...paper.querySelectorAll('.jr-q')].forEach(el=>{el.classList.toggle('private-text',hidden(e));el.setAttribute('aria-hidden',String(hidden(e)));});ed.contentEditable=String(!hidden(e));title.readOnly=hidden(e);};privateView();
         const eye=privacy(e,()=>{privateView();drawList();});
