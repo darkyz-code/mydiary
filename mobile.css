@@ -385,12 +385,14 @@ html.is-mobile .mini > div {min-width:0;overflow-wrap:anywhere}
 html.is-mobile .ring-wrap {flex-shrink:0} html.is-mobile .ring-center {gap:3px} html.is-mobile .ring-val {line-height:1.1} html.is-mobile .ring-lbl {line-height:1.2} html.is-mobile .day-left > .card > div:last-child {min-width:0}
 
 /* Consistent card rhythm and phone editing space. */
-html.is-mobile .jr-tiles {grid-auto-rows:1fr;align-items:stretch}
-html.is-mobile .jr-tile {display:grid;grid-template-rows:36px minmax(2.5em,auto) minmax(2.8em,auto) 5px;align-content:start;align-items:start;gap:8px;padding:18px 20px;height:100%;min-width:0}
-html.is-mobile .jr-tile b {margin:0;line-height:1.25;align-self:center}
-html.is-mobile .jr-tile > span {line-height:1.4}
+html.is-mobile .jr-tiles {grid-auto-rows:auto;align-items:stretch}
+html.is-mobile .jr-tile {min-width:0;min-height:0;height:max(128px,calc(192px * var(--fs) - 64px));padding:18px 20px 6px}
+html.is-mobile .jr-tile > b {max-width:100%;overflow-wrap:anywhere;line-height:1.2;flex-shrink:0}
+html.is-mobile .jr-tile > span:not(.gicon) {line-height:1.2;flex-shrink:0}
+html.is-mobile .jr-tile .jt-prog {position:absolute;left:20px;right:20px;bottom:4px;width:auto;height:3px;margin:0}
+@media(max-width:410px){html.is-mobile .jr-tile {padding-left:12px;padding-right:12px}html.is-mobile .jr-tile .jt-prog {left:12px;right:12px}}
+@media(max-width:350px){html.is-mobile .jr-tile {height:max(152px,calc(152px * var(--fs)))}}
 html.is-mobile .jr-tile .jt-glow {position:absolute}
-html.is-mobile .jr-tile .ab-mini {align-self:end}
 html.is-mobile .q-actions > button {font-size:1rem;font-weight:650;min-height:44px;line-height:1.3}
 html.is-mobile .day-head {display:grid;grid-template-columns:36px 36px 36px 1fr;gap:10px;margin-bottom:20px}
 html.is-mobile .day-head > .icon-btn {width:36px;height:36px;grid-row:1}
@@ -415,7 +417,6 @@ button:has(.privacy-eye) {opacity:.5} button:has(.privacy-eye):focus-visible {op
 .pt-item {position:relative;padding-right:44px}
 .portrait-edit {position:absolute;right:0;top:12px}
 
-html.is-mobile .jr-tile b {align-self:start}
 
 .removed-check {display:none} .theme-card .chk {display:none}
 html.is-mobile .day-head .dh-sub > .faint:empty {display:none} html.is-mobile .view {padding-top:calc(var(--safe-t) + 32px) !important}
