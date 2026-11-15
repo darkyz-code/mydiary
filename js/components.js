@@ -265,7 +265,7 @@
     });
   }
 
-  function toast(text, icon = '') {
+  function toast(text, icon = '✓') {
     let host = document.getElementById('toasts');
     if (!host) { host = h('div#toasts'); document.body.appendChild(host); }
     const t = h('div.toast.glass', h('span.toast-ico', icon), h('span', text));

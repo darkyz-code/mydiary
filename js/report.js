@@ -82,10 +82,22 @@
   const rule = (cat, fn) => R.push({ cat, fn });
 
   rule('checkins', c => {
-    const p=c.d.general && c.d.general.periods || {},a=M().rating(p.day && p.day.overall),b=M().rating(p.evening && p.evening.overall);
-    if(a==null && b==null)return null;
-    if(a==null || b==null)return {k:'info',p:5,t:'Оценка самочувствия',x:'Самочувствие оценено только '+(a==null?'вечером':'днём')+'. Для этого показателя использована одна отметка. Остальные заполненные показатели обеих частей дня учитываются отдельно; пропуски не считаются нулём.'};
-    return {k:'info',p:8,t:b>a?'К вечеру стало лучше':b<a?'К вечеру стало тяжелее':'Ровное состояние днём и вечером',x:'Днём '+a+'/10, вечером '+b+'/10. В итог входит среднее '+((a+b)/2)+'/10; разница между отметками сохраняется отдельно.'};
+    const a=H.periods.read(c.d,'day'),b=H.periods.read(c.d,'evening');if(!a||!b)return null;
+    const lines=[];
+    for(const [key,label,inverse] of [['overall','Настроение',false],['energy','Энергия',false],['stress','Стресс',true]]){
+      const x=M().rating(a.general[key]),y=M().rating(b.general[key]);if(x==null||y==null)continue;
+      lines.push(label+': днём '+x+'/10, вечером '+y+'/10'+(x===y?' — без изменений.':(y>x)!==inverse?' — к вечеру лучше.':' — к вечеру тяжелее.'));
+    }
+    for(const [key,value] of Object.entries(a.symptoms||{})){const evening=b.symptoms?.[key];if(value.score==null||evening?.score==null||value.score===evening.score)continue;lines.push((H.store.symptomById(key)?.name||key)+': днём '+value.score+'/10, вечером '+evening.score+'/10.');}
+    for(const [key,value] of Object.entries(a.emotions||{})){const evening=b.emotions?.[key];if(value.score==null||evening?.score==null||value.score===evening.score)continue;lines.push((H.EMOTIONS.find(x=>x.id===key)?.name||key)+': днём '+value.score+'/10, вечером '+evening.score+'/10.');}
+    const strongest=slot=>Object.entries(slot.emotions||{}).filter(([,v])=>M().rating(v.score)!=null).sort((x,y)=>y[1].score-x[1].score)[0];
+    const dayEmotion=strongest(a),eveningEmotion=strongest(b);
+    if(dayEmotion&&eveningEmotion&&dayEmotion[0]!==eveningEmotion[0]){
+      const label=entry=>(H.EMOTIONS.find(x=>x.id===entry[0])?.name||entry[0])+' ('+entry[1].score+'/10)';
+      lines.push('Среди отмеченных эмоций днём сильнее всего: '+label(dayEmotion)+', вечером: '+label(eveningEmotion)+'.');
+    }
+    if(!lines.length)return null;
+    return {k:'info',p:20,t:'Как менялось состояние к вечеру',x:lines.join(' ')+' Для показателей с двумя отметками учтено их среднее; незаполненные поля не считаются нулём.'};
   });
   // --- SLEEP ---
   rule('sleep', c => c.sleep && c.sleep.inverted && { k: 'warn', p: 9, t: 'Режим сбился', x: `Основной сон начался ${c.sleep.sl.bed} — уже днём. Так бывает после бессонной ночи или при сдвинутом ритме. Сон в светлое время обычно хуже восстанавливает. Мягко возвращаться помогают утренний свет, подъём в одно время и короткий дневной сон вместо долгого.` });

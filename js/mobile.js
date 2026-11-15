@@ -120,7 +120,7 @@
   H.views.quick = function (root,params) {
     const date = H.today();
     const S = H.store.get();
-    const period=params?.period||H.activePeriod||'day';H.activePeriod=period;
+    const period='day';H.activePeriod='day';
     const R = () => H.periods.read(S.days[date],period);
     const W = () => H.periods.write(H.store.day(date,true),period);
     const changed = block => { H.periods.touch(H.store.day(date,true),period,block);H.store.touch(date, block); H.game.onDayEdit(date, block); };
@@ -157,7 +157,7 @@
           return h('button.slot' + (on ? '.on' : ''), { onclick: () => {
             const d = W(); d.meds = d.meds || {}; const r = d.meds[m.id] || (d.meds[m.id] = { slots: Array(n).fill(false), dose: m.dose });
             r.slots[i] = !r.slots[i]; r.dose = m.dose; changed('meds'); drawMeds();
-          } }, h('span.chk', on ? '•' : ''), sn);
+          } }, h('span.chk', on ? '✓' : ''), sn);
         });
         medsHost.appendChild(h('div.q-medrow', h('span.m-dot', { style: { background: kind.color } }), h('div.q-mname', h('b', m.name), m.dose ? h('small', m.dose + ' ' + (m.unit || 'мг')) : null), h('div.q-mslots', slots)));
       });
@@ -184,7 +184,7 @@
     const card = (title, ...kids) => h('div.glass.card.q-card', h('div.q-t', title), ...kids);
     root.appendChild(h('div.wrap.q-wrap',
       h('div.q-head', h('div.q-date', H.cap(H.weekday(date)) + ', ' + H.fmtLong(date)), h('h1', 'Как ты сегодня?'), h('p.muted', 'Быстрая отметка — полминуты. Подробнее можно в полной анкете.')),
-      H.periods.tabs(period,p=>H.go('quick',{period:p})),card(period==='day'?'День':'Вечер', H.dayCheckin(R,W,changed,period)),
+      card(period==='day'?'День':'Вечер', H.dayCheckin(R,W,changed,period)),
       card('Сон', h('div.q-sleep', h('label', h('span', 'уснула'), tIn('bed', prev && prev.bed)), h('label', h('span', 'проснулась'), tIn('wake', prev && prev.wake))), sumEl, h('div.q-sub', 'как спалось'), qual),
       card('Таблетки', medsHost),
       card('Что чувствую', emoHost),
