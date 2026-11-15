@@ -108,6 +108,18 @@
     if (!d && create) { d = emptyDay(date); data.days[date] = d; }
     return d || null;
   }
+  function clearDay(date) {
+    // Remove the whole date, including both periods and legacy period archives.
+    H.syncForget(date);
+    delete data.days[date];
+    data.profile.weightLog = (data.profile.weightLog || []).filter(x => x.date !== date);
+    if (data.settings.dreamPrivacy) {
+      delete data.settings.dreamPrivacy[date + '|day'];
+      delete data.settings.dreamPrivacy[date + '|evening'];
+    }
+    save();
+    return persistNow();
+  }
   // mark a block of a day as edited now
   function touch(date, block) {
     const d = day(date, true);
@@ -123,5 +135,5 @@
   }
   function symptomById(id) { return allSymptoms().find(s => s.id === id); }
 
-  Object.assign(H, { store: { syncCustomEmotions, load, save, get, replace, reset, onChange, day, touch, emptyDay, persistNow, allSymptoms, symptomById, hasApi } });
+  Object.assign(H, { store: { syncCustomEmotions, load, save, get, replace, reset, onChange, day, clearDay, touch, emptyDay, persistNow, allSymptoms, symptomById, hasApi } });
 })(window.H);
