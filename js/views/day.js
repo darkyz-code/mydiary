@@ -53,8 +53,9 @@
       H.periods.clear(H.store.day(date,true),period,id);H.store.save();H.go('day',{date,openEvening:embedded});ui.toast('Раздел очищен');
     }
     async function clearDay(){
-      if(!await ui.confirm('Сбросить дневные оценки и общие отметки этой даты (сон, цикл, лекарства и остальные разделы)? Вечерние оценки сохранятся.','Сбросить',true))return;
-      H.periods.clear(H.store.day(date,true),period);H.store.save();H.go('day',{date,openEvening:embedded});
+      const label=(isToday?'сегодня, ':'')+H.fmtLongY(date);
+      if(!await ui.confirm('Полностью сбросить все данные за '+label+'? Будут удалены все отметки этой даты, включая вечер, если он заполнен, сон, приём лекарств, цикл, фото и итог дня. Отменить сброс нельзя. Личные заметки и другие даты сохранятся.','Сбросить день',true))return;
+      await H.store.clearDay(date);H.go('day',{date});
     }
     function srow(name, control, extra) { return h('div.srow', extra || {}, h('div.s-name', name), control); }
 
@@ -63,14 +64,15 @@
     const updated = h('span.faint', { style: { fontSize: '.78rem' } }, R() && R().updatedAt ? 'Последнее изменение: ' + H.fmtStamp(R().updatedAt) : '');
     const head = h('div.day-head',
       h('button.icon-btn', { onclick: () => H.go('home'), title: 'На главную' }, H.icon('home', 18)),
-      h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, -1) }), title: 'Предыдущий день' }, '‹'),
+      h('div.day-date-nav',{'aria-label':'Переключить дату'},
+        h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, -1) }), title: 'Предыдущий день' }, '‹'),
+        h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, 1) }), title: 'Следующий день' }, '›')),
       h('div.day-heading',
         h('h1', H.cap(H.weekday(date)) + ', ' + H.fmtLong(date)),
         h('div.dh-sub',
           isToday ? h('span.badge', 'Сегодня') : h('button.btn.small.ghost', { onclick: () => H.go('day', { date: H.today() }) }, 'К сегодняшнему дню'),
           ci && ci.phase !== 'late' ? h('span.badge', `🌸 День цикла ${ci.dayN}`) : null,
           saveInd, updated)),
-      h('button.icon-btn', { onclick: () => H.go('day', { date: H.addDays(date, 1) }), title: 'Следующий день' }, '›'),
       h('div.grow', { style: { flex: 1 } }),
       h('button.btn', { onclick: () => H.go('calendar', { month: date.slice(0, 7) }) }, H.icon('calendar', 17), 'Календарь'),
       h('button.day-summary-action.sheen', { onclick: rateDay }, h('span.summary-glint'), H.icon('sparkle', 17), 'Оценить день'));
