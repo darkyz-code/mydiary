@@ -182,7 +182,8 @@
       const list = Object.keys(cnt).map(id => ({ e: H.EMOTIONS.find(x => x.id === id), n: cnt[id].length, avg: H.avg(cnt[id]) })).filter(x => x.e).sort((a, b) => b.n - a.n).slice(0, 10);
       const max = list.length ? list[0].n : 1;
       return h('div.glass.card', h('div.card-title', H.gicon('mind', 17, 'sm'), h('h3', 'Частые эмоции')),
-        list.length ? list.map(x => h('div.bar-row', h('span', x.e.e + ' ' + x.e.name), h('div.bar', h('i', { style: { width: (x.n / max * 100) + '%' } })), h('span.faint', `${x.n} дн. · ${H.round1(x.avg)}`))) : h('p.muted', 'Эмоции за этот период ещё не отмечены.'));
+        list.length ? h('p.faint', { style: { fontSize: '.74rem', margin: '0 0 12px' } }, 'Средний балл по десятибалльной шкале') : null,
+        list.length ? list.map(x => h('div.bar-row.emotion-frequency-row', h('span', x.e.e + ' ' + x.e.name), h('div.bar', h('i', { style: { width: (x.n / max * 100) + '%' } })), h('span.faint.emotion-stats-value', { 'aria-label': `${x.n} ${H.plural(x.n, 'день', 'дня', 'дней')}, средний балл ${String(H.round1(x.avg)).replace('.', ',')} из 10` }, `${x.n} дн. ${String(H.round1(x.avg)).replace('.', ',')}`))) : h('p.muted', 'Эмоции за этот период ещё не отмечены.'));
     }
 
     function adherenceCard(ds) {

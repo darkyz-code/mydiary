@@ -208,6 +208,8 @@
     let cleanup = null;
     const bal = () => h('div.gem-chip', H.icon('gem', 18), h('b.gem-balance', String(S().game.crystals)), h('span', 'кристаллов'));
     const render = () => {
+      const badge = document.getElementById('gem-badge');
+      if (badge) badge.hidden = tab !== 'collection';
       if (cleanup) { cleanup(); cleanup = null; }
       H.clear(host);
       if (tab === 'cases') {

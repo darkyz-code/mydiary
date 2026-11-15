@@ -653,7 +653,7 @@
     }, 450);
     if(embedded){root.append(...blocks);return;}
     const eveningHost=h('div.evening-blocks');
-    const evening=h('details.optional-evening.glass', {open:!!params?.openEvening},h('summary','Вечер · по желанию'),h('p.muted','Можно дополнить день: самочувствие, эмоции и физическое состояние.'),eveningHost);
+    const evening=h('details.optional-evening', {open:!!params?.openEvening},h('summary','Вечер · по желанию'),h('p.muted','Можно дополнить день: самочувствие, эмоции и физическое состояние.'),eveningHost);
     H.views.day(eveningHost,{date,eveningEmbedded:true});
     root.addEventListener('period-change',()=>{refreshSide();renderSavedReport();});
     root.appendChild(h('div.wrap',head,h('div.day-grid',sideHost,h('div.day-blocks',blocks,evening,reportHost,h('div.day-footer',h('button.day-summary-action.sheen',{onclick:rateDay},h('span.summary-glint'),H.icon('sparkle',17),'Итог дня'),h('button.btn.ghost.clear-day',{onclick:clearDay},H.icon('reset',16),'Сбросить день'))))));
