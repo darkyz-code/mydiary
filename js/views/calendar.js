@@ -55,8 +55,10 @@
     }
     function togglePeriod(dt) {
       const d = H.store.day(dt, true);
-      d.cycle.period = !d.cycle.period;
-      if (!d.cycle.period) delete d.cycle.flow;
+      const shared = H.periods.write(d, 'day');
+      shared.cycle.period = !shared.cycle.period;
+      if (!shared.cycle.period) delete shared.cycle.flow;
+      H.periods.touch(d, 'day', 'cycle');
       H.store.touch(dt, 'cycle');
       render();
     }

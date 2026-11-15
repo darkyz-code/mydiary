@@ -233,7 +233,7 @@
       const TYPES = H.DREAMS.filter(x => x.id !== 'none');
       const tName = id => (H.DREAMS.find(x => x.id === id) || {}).name || id;
       const hasDream = d => d && d.sleep && (((d.sleep.dreamText || '').trim()) || (d.sleep.dreams || []).some(x => x !== 'none'));
-      const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().flatMap(k => ['day','evening'].map(period=>({...H.periods.read(H.store.get().days[k],period),_period:period}))).filter(hasDream);
+      const collect = () => Object.keys(H.store.get().days || {}).sort().reverse().map(k=>({...H.periods.write(H.store.get().days[k],'day'),_period:'day'})).filter(hasDream);
       let filt = 'all', q = '';
       const wrap = h('div.dr-wrap');
       st.dreamPrivacy=st.dreamPrivacy||{};

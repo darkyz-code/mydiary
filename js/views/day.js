@@ -5,7 +5,7 @@
   H.views.day = function (root, params) {
     const date = (params && params.date) || H.today();
     const S = H.store.get();
-    const period = params?.period || H.activePeriod || 'day'; H.activePeriod=period;
+    const embedded=!!params?.eveningEmbedded; const period=embedded?'evening':'day'; H.activePeriod='day';
     const R = () => H.periods.read(S.days[date],period);                 // read (may be null)
     const W = () => H.periods.write(H.store.day(date, true),period);      // write (creates the day)
     const isToday = date === H.today();
@@ -26,7 +26,7 @@
       clearTimeout(saveInd._t);
       saveInd._t = setTimeout(() => { saveInd.classList.remove('saving'); saveInd.lastChild.textContent = 'Сохранено'; }, 700);
       updated.textContent = 'Последнее изменение: ' + H.fmtStamp(R().updatedAt);
-      refreshSideLater();
+      refreshSideLater();root.dispatchEvent(new CustomEvent('period-change',{bubbles:true}));
     }
 
     function block(id, ...content) {
@@ -47,12 +47,14 @@
       return sec;
     }
     async function resetBlock(id,name){
-      if(!await ui.confirm('Сбросить раздел «'+name+'» за '+(period==='day'?'день':'вечер')+'? Отметки другой части дня сохранятся.','Сбросить'))return;
-      H.periods.clear(H.store.day(date,true),period,id);H.store.save();H.go('day',{date,period});ui.toast('Раздел очищен');
+      const separate=['general','emotions','physical'].includes(id);
+      const message=separate?'Сбросить раздел «'+name+'» за '+(period==='day'?'день':'вечер')+'? Отметки другой части дня сохранятся.':'Сбросить общие отметки раздела «'+name+'» за эту дату? Остальные разделы сохранятся.';
+      if(!await ui.confirm(message,'Сбросить'))return;
+      H.periods.clear(H.store.day(date,true),period,id);H.store.save();H.go('day',{date,openEvening:embedded});ui.toast('Раздел очищен');
     }
     async function clearDay(){
-      if(!await ui.confirm('Сбросить все отметки за '+(period==='day'?'день':'вечер')+'? Отметки другой части дня сохранятся.','Сбросить',true))return;
-      H.periods.clear(H.store.day(date,true),period);H.store.save();H.go('day',{date,period});
+      if(!await ui.confirm('Сбросить дневные оценки и общие отметки этой даты (сон, цикл, лекарства и остальные разделы)? Вечерние оценки сохранятся.','Сбросить',true))return;
+      H.periods.clear(H.store.day(date,true),period);H.store.save();H.go('day',{date,openEvening:embedded});
     }
     function srow(name, control, extra) { return h('div.srow', extra || {}, h('div.s-name', name), control); }
 
@@ -96,8 +98,8 @@
       sideHost.appendChild(h('div.glass.sil-card', sil,
         h('div.hint', 'Нажми на область тела, чтобы отметить, что беспокоит'),
         h('button.btn.small.whole-body', { onclick: e => openZone('body', e.currentTarget.getBoundingClientRect()) }, H.icon('body', 15), 'Всё тело' + (bodyCount ? ` · ${bodyCount}` : ''))));
-      const wb = H.metrics.wellbeing(R());
-      const filled = H.metrics.filledBlocks(R());
+      const wb = H.metrics.wellbeing(S.days[date]);
+      const filled = H.metrics.filledBlocks(S.days[date]);
       const total = H.BLOCKS.filter(b => !S.settings.hiddenBlocks.includes(b.id)).length;
       sideHost.appendChild(h('div.glass.card', { style: { display: 'flex', gap: '16px', alignItems: 'center' } },
         ui.ring(wb, 96, 'из 100'),
@@ -232,7 +234,7 @@
 
     // ---------- blocks ----------
     const blocks = [];
-    const hidden = S.settings.hiddenBlocks || [];
+    const hidden = [...(S.settings.hiddenBlocks || []),...(embedded?H.BLOCKS.filter(b=>!['general','emotions','physical'].includes(b.id)).map(b=>b.id):[])];
 
     // general
     if (!hidden.includes('general')) {
@@ -318,7 +320,7 @@
         h('div.sleep-row.two', ui.field('Уснула днём в', ui.input(sv('napStart') || '', setS('napStart'), { type: 'time' })), ui.field('Проснулась в', ui.input(sv('napEnd') || '', setS('napEnd'), { type: 'time' }))),
         srow('Качество дневного сна', ui.slider({ value: sv('napQuality'), mode: 'good', onChange: setS('napQuality') }))));
       const dreamSel = new Set(sv('dreams') || []);
-      const dreamInput=ui.textarea(sv('dreamText'),setS('dreamText'),'Что снилось? Можно коротко — образы, ощущения, сюжет.',3);const dreamKey=date+'|'+period;const hiddenDream=()=>S.settings.dreamPrivacy?.[dreamKey]??!!S.settings.dreamBlur;const paintDream=()=>{dreamInput.classList.toggle('private-text',hiddenDream());dreamInput.readOnly=hiddenDream();dreamInput.setAttribute('aria-hidden',String(hiddenDream()));};paintDream();const dreamEye=h('button.icon-btn.small',{title:'Показать или скрыть этот сон',onclick:()=>{S.settings.dreamPrivacy=S.settings.dreamPrivacy||{};S.settings.dreamPrivacy[dreamKey]=!hiddenDream();H.store.save();paintDream();}},H.icon('eye',16));const dreamText=h('div.note-area'+(sv('dreamText')?'.open':''),h('div.note-wrap',dreamEye,dreamInput));
+      const dreamInput=ui.textarea(sv('dreamText'),setS('dreamText'),'Что снилось? Можно коротко — образы, ощущения, сюжет.',3);const dreamKey=date+'|'+period;const hiddenDream=()=>H.periods.dreamHidden(S.days[date],period);const paintDream=()=>{dreamInput.classList.toggle('private-text',hiddenDream());dreamInput.readOnly=hiddenDream();dreamInput.setAttribute('aria-hidden',String(hiddenDream()));};paintDream();const dreamEye=h('button.icon-btn.small',{title:'Показать или скрыть этот сон',onclick:()=>{S.settings.dreamPrivacy=S.settings.dreamPrivacy||{};S.settings.dreamPrivacy[dreamKey]=!hiddenDream();H.store.save();paintDream();}},H.icon('eye',16));const dreamText=h('div.note-area'+(sv('dreamText')?'.open':''),h('div.note-wrap',dreamEye,dreamInput));
       blocks.push(block('sleep',
         h('div.sleep-row', ui.field('Уснула в', ui.input(sv('bed') || '', setS('bed'), { type: 'time' })), ui.field('Проснулась в', ui.input(sv('wake') || '', setS('wake'), { type: 'time' })), total),
         bar,
@@ -391,12 +393,12 @@
           const rec = R() && R().meds[m.id];
           const slotBtns = slots.map((sn, i) => {
             const on = !!(rec && rec.slots && rec.slots[i]);
-            const b = h('button.slot' + (on ? '.on' : ''), h('span.chk', on ? '•' : ''), sn);
+            const b = h('button.slot' + (on ? '.on' : ''), h('span.chk', on ? '✓' : ''), sn);
             b.addEventListener('click', () => {
               const d = W();
               const r = d.meds[m.id] || (d.meds[m.id] = { slots: Array(n).fill(false), dose: m.dose });
               r.slots[i] = !r.slots[i]; r.dose = m.dose;
-              b.classList.toggle('on', r.slots[i]); b.firstChild.textContent = r.slots[i] ? '•' : '';
+              b.classList.toggle('on', r.slots[i]); b.firstChild.textContent = r.slots[i] ? '✓' : '';
               changed('meds');
             });
             return b;
@@ -649,6 +651,11 @@
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       el.classList.add('focus-flash'); setTimeout(() => el.classList.remove('focus-flash'), 1800);
     }, 450);
-    root.appendChild(h('div.wrap', head, H.periods.tabs(period,p=>H.go('day',{date,period:p})), h('div.day-grid', sideHost, h('div.day-blocks', blocks, reportHost, h('div.day-footer', h('button.day-summary-action.sheen', {onclick:rateDay}, h('span.summary-glint'), H.icon('sparkle',17), 'Итог дня'), h('button.btn.ghost.clear-day', {onclick:clearDay}, H.icon('reset',16), period==='day'?'Сбросить день':'Сбросить вечер'))))));
+    if(embedded){root.append(...blocks);return;}
+    const eveningHost=h('div.evening-blocks');
+    const evening=h('details.optional-evening.glass', {open:!!params?.openEvening},h('summary','Вечер · по желанию'),h('p.muted','Можно дополнить день: самочувствие, эмоции и физическое состояние.'),eveningHost);
+    H.views.day(eveningHost,{date,eveningEmbedded:true});
+    root.addEventListener('period-change',()=>{refreshSide();renderSavedReport();});
+    root.appendChild(h('div.wrap',head,h('div.day-grid',sideHost,h('div.day-blocks',blocks,evening,reportHost,h('div.day-footer',h('button.day-summary-action.sheen',{onclick:rateDay},h('span.summary-glint'),H.icon('sparkle',17),'Итог дня'),h('button.btn.ghost.clear-day',{onclick:clearDay},H.icon('reset',16),'Сбросить день'))))));
   };
 })(window.H);
