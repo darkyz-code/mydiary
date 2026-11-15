@@ -419,3 +419,6 @@ html.is-mobile .jr-tile b {align-self:start}
 
 .removed-check {display:none} .theme-card .chk {display:none}
 html.is-mobile .day-head .dh-sub > .faint:empty {display:none} html.is-mobile .view {padding-top:calc(var(--safe-t) + 32px) !important}
+
+.removed-check {display:inline} .theme-card .chk {display:grid}
+.optional-evening {padding:18px 14px;border-radius:24px} .optional-evening > summary {cursor:pointer;font-weight:650;font-size:1rem} .optional-evening > p {font-size:.85rem;line-height:1.5;margin:14px 0} .evening-blocks {display:grid;gap:16px} .optional-evening .block {margin:0}
