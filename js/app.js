@@ -61,6 +61,7 @@
     const el = h('div.view.enter');
     // Keep the balance inside the scrolling page, preserving its listeners.
     const balance = document.getElementById('gem-badge');
+    if (balance) balance.hidden = view !== 'home';
     if (balance && document.documentElement.classList.contains('is-mobile')) el.appendChild(balance);
     H.clear(host).appendChild(el);
     try {

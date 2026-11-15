@@ -8,7 +8,10 @@
   function fitHeight() {
     const standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
     const editing = document.documentElement.classList.contains('mobile-editing');
-    let hgt = editing && window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    // iOS can pan the visual viewport while the keyboard is open. Its height alone
+    // ends the app above the keyboard; use its bottom edge in layout coordinates.
+    const vv = window.visualViewport;
+    let hgt = editing && vv ? vv.height + vv.offsetTop : window.innerHeight;
     if (!editing && standalone && screen && screen.height) {
       const portrait = window.innerWidth < window.innerHeight;
       const sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
@@ -47,7 +50,11 @@
   document.addEventListener('focusout',()=>setTimeout(editingState,0));
   document.addEventListener('input',revealCaret);
   document.addEventListener('selectionchange',revealCaret);
-  if(window.visualViewport){visualViewport.addEventListener('resize',()=>{fitHeight();revealCaret();});}
+  if(window.visualViewport){
+    const viewportChanged=()=>{fitHeight();revealCaret();};
+    visualViewport.addEventListener('resize',viewportChanged);
+    visualViewport.addEventListener('scroll',viewportChanged);
+  }
 
   const TABS = [
     { id: 'home', ico: 'home', name: 'Главная' },
